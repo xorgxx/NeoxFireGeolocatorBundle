@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    bootstrap="../../vendor/autoload.php" is made to work with racine project
+      vs
+    bootstrap="vendor/autoload.php" is made to work with GeolocatorBundle project
+-->
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="/vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="tests/bootstrap.php"
+         colors="true"
+         cacheDirectory=".phpunit.cache"
+         displayDetailsOnTestsThatTriggerWarnings="true"
+         displayDetailsOnTestsThatTriggerNotices="true"
+         displayDetailsOnTestsThatTriggerErrors="true"
+         displayDetailsOnTestsThatTriggerDeprecations="true"
+         displayDetailsOnSkippedTests="true"
+         failOnWarning="true"
+         failOnNotice="true">
+    <php>
+        <ini name="display_errors" value="1" />
+        <ini name="error_reporting" value="-1" />
+        <server name="APP_ENV" value="test" force="true" />
+        <env name="DATABASE_URL" value="sqlite:///%kernel.project_dir%/var/test.db"/>
+        <server name="SHELL_VERBOSITY" value="-1" />
+        <server name="SYMFONY_PHPUNIT_REMOVE" value="" />
+        <server name="SYMFONY_PHPUNIT_VERSION" value="11.5" />
+        <env name="SYMFONY_DEPRECATIONS_HELPER" value="weak"/>
+    </php>
+
+    <testsuites>
+<!--        <testsuite name="unit">-->
+<!--            <directory>tests/Unit</directory>-->
+<!--        </testsuite>-->
+        <testsuite name="GeolocatorBundle Unit Test Suite">
+            <directory>tests/Unit</directory>
+        </testsuite>
+<!--        <testsuite name="GeolocatorBundle Functional Test Suite">-->
+<!--            <directory>tests/Functional</directory>-->
+<!--        </testsuite>-->
+        <testsuite name="GeolocatorBundle Traits Test Suite">
+            <directory>tests/Traits</directory>
+        </testsuite>
+        <testsuite name="GeolocatorBundle Integration Test Suite">
+            <directory>tests/Integration</directory>
+        </testsuite>
+    </testsuites>
+
+    <logging>
+        <junit outputFile="var/log/phpunit.xml"/>
+    </logging>
+
+    <source>
+        <include>
+            <directory suffix=".php">src</directory>
+        </include>
+        <exclude>
+            <directory>src/DependencyInjection</directory>
+            <directory>src/Resources</directory>
+        </exclude>
+    </source>
+</phpunit>

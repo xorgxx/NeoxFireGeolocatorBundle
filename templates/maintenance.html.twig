@@ -1,0 +1,138 @@
+{# templates/geolocator/maintenance.html.twig - autonome, pas d'extends #}
+<!DOCTYPE html>
+<html lang="fr" >
+<head >
+    <meta charset="UTF-8" >
+    <title >Maintenance en cours</title >
+    <meta name="robots" content="noindex,nofollow" >
+    <meta http-equiv="Cache-Control" content="no-store" >
+    {# Importez exactement la même CSS que pour la page banned #}
+    {{ include('@NeoxFireGeolocator/partials/geolocator-css.html.twig') }}
+    {#    <link rel="stylesheet" href="{{ asset('bundles/geolocator/banned.css') }}"> #}
+</head >
+<body >
+<section class="gl-wrap" >
+    <div class="gl-card" role="status" aria-live="polite" >
+        <div class="gl-icon" >🛠️</div >
+        <h1 class="gl-title" >Maintenance en cours</h1 >
+        <p class="gl-lead" >{{ message is defined and message ? message : 'Le service est temporairement indisponible.' }}</p >
+
+        <div class="gl-context" >
+            {% if comment is defined and comment %}
+                <div class="gl-kv" >
+                    <span >Commentaire</span >
+                    <b >{{ comment }}</b >
+                </div >
+            {% endif %}
+
+
+        </div >
+        <div class="gl-context" >
+            {% if since is defined and since %}
+                <div class="gl-kv" >
+                    <span >Depuis</span >
+                    <b >
+                        <time class="gl-localtime" datetime="{{ since|date('c') }}" data-fallback="{{ since|date('Y-m-d H:i:s') }} UTC" >
+                            {{ since|date('Y-m-d H:i:s') }} UTC
+                        </time >
+                    </b >
+                </div >
+            {% endif %}
+            {% if until is defined and until %}
+                <div class="gl-kv" >
+                    <span >Jusqu’à</span >
+                    <b >
+                        <time class="gl-localtime" datetime="{{ until|date('c') }}" data-fallback="{{ until|date('Y-m-d H:i:s') }} UTC" >
+                            {{ until|date('Y-m-d H:i:s') }} UTC
+                        </time >
+                    </b >
+                </div >
+            {% elseif release_at is defined and release_at %}
+                <div class="gl-kv" >
+                    <span >Jusqu’à</span >
+                    <b >
+                        <time class="gl-localtime" datetime="{{ release_at|date('c') }}" data-fallback="{{ release_at|date('Y-m-d H:i:s') }} UTC" >
+                            {{ release_at|date('Y-m-d H:i:s') }} UTC
+                        </time >
+                    </b >
+                </div >
+            {% endif %}
+
+            {#            {% if ttl is defined and ttl is not null %} #}
+            {#                <div class="gl-kv"> #}
+            {#                    <span>TTL restant (approx.)</span> #}
+            {#                    <b>{{ ttl|date('H:i:s') }}</b> #}
+            {#                </div> #}
+            {#            {% endif %} #}
+
+            {#            {% if retry_after is defined and retry_after %} #}
+            {#                <div class="gl-kv"> #}
+            {#                    <span>Retry-After</span> #}
+            {#                    <b> #}
+            {#                        <time id="gl-retry-at" class="gl-localtime" #}
+            {#                            datetime="{{ retry_after|date('c') }}" #}
+            {#                            data-fallback="{{ retry_after|date('Y-m-d H:i:s') }}"> #}
+            {#                            {{ retry_after|date('Y-m-d H:i:s') }} #}
+            {#                        </time> #}
+            {#                    </b> #}
+            {#                </div> #}
+            {#            {% endif %} #}
+        </div >
+
+        <div class="gl-actions" >
+            <a href="/" class="gl-btn gl-primary" >🏠 Accueil</a >
+        </div >
+
+        <p class="gl-help" >Nous remettons le service en ligne dès que possible. Merci de votre patience.</p >
+    </div >
+</section >
+<script >
+    ( function(){
+        try {
+            // Formatte une balise <time> donnée
+            function formatTime( el ){
+                var iso = el.getAttribute( 'datetime' );
+                var fallback = el.getAttribute( 'data-fallback' ) || el.textContent;
+                var d = new Date( iso );
+                if( isNaN( d.getTime() ) ){
+                    el.textContent = fallback;
+                    return;
+                }
+
+                // Fuseau du navigateur
+                var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+                // Formatage 24h + nom de fuseau court (CET/CEST, EST, UTC+2…)
+                var fmt = new Intl.DateTimeFormat( undefined, {
+                    weekday: 'long',
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                    hour : '2-digit', minute : '2-digit', second : '2-digit',
+                    hour12 : false,
+                    // timeZoneName : 'short',
+                    timeZone : tz
+                } );
+
+                el.textContent = fmt.format( d );
+                // Tooltip en UTC ISO pour référence
+                el.title = d.toISOString().replace( 'T', ' ' ).replace( 'Z', ' UTC' );
+                el.removeAttribute( 'data-fallback' );
+            }
+
+            // 1) Tous les <time.gl-localtime>
+            var nodes = document.querySelectorAll( 'time.gl-localtime' );
+            nodes.forEach( formatTime );
+
+            // 2) Compat : si tu gardes un id spécifique pour Retry-After
+            var retry = document.getElementById( 'gl-retry-at' );
+            if( retry && !retry.classList.contains( 'gl-localtime' ) ){
+                formatTime( retry );
+            }
+        } catch( e ) { /* fallback silencieux */
+        }
+    } )();
+</script >
+
+</body >
+</html >

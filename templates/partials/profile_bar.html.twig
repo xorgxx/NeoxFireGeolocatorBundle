@@ -1,0 +1,19 @@
+{% if ctx %}
+  <div style="position:fixed; bottom:10px; right:10px; background:#111827; color:#fff; padding:8px 12px; border-radius:8px; font: 14px system-ui; opacity:0.9; z-index: 2147483647;">
+    <span>🌐</span>
+    <span style="margin-left:6px">{{ ctx.ip }}</span>
+    {% if ctx.countryCode %}
+      <span style="margin-left:6px">{{ country_flag(ctx.countryCode) }} [{{ ctx.countryCode }}]</span>
+    {% endif %}
+
+    {% if auth %}
+      {% if auth.allowed %}
+        <span style="margin-left:6px">✔️</span>
+      {% else %}
+        <span style="margin-left:6px">⛔ {{ auth.reason }}{% if auth.blockingFilter %} ({{ auth.blockingFilter }}){% endif %}</span>
+      {% endif %}
+    {% endif %}
+
+    {% if simulate %}<span style="margin-left:6px">🟡 simulate</span>{% endif %}
+  </div>
+{% endif %}

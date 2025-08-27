@@ -1,0 +1,29 @@
+page:
+  deny:
+    meta_title: 'Accès refusé • Geolocator'
+    title: 'Accès refusé'
+    lead: 'Votre requête a été bloquée par une règle de sécurité.'
+    attempts_left: 'Tentatives restantes avant bannissement'
+  banned:
+    meta_title: 'Bloqué temporairement • Geolocator'
+    title: 'Vous êtes temporairement bloqué'
+    lead: "En raison d'un trop grand nombre de tentatives, l'accès est temporairement restreint. Réessayez plus tard."
+    help: "Si vous pensez qu'il s'agit d'une erreur, contactez le support et indiquez votre IP."
+label:
+  reason: 'Raison'
+  na: 'n/a'
+  ip: 'IP'
+  country: 'Pays'
+  attempts_current: 'Tentatives (fenêtre actuelle)'
+  attempts_ttl: 'TTL restant (fenêtre des tentatives)'
+  ban_remaining: 'Durée restante du blocage'
+  retry_at: 'Vous pourrez réessayer'
+action:
+  back: 'Revenir'
+  home: 'Accueil'
+problem:
+  denied:
+    title: 'Accès refusé'
+  banned:
+    title: 'Trop de requêtes'
+    detail: "Vous avez été temporairement bloqué en raison d'un trop grand nombre de tentatives."

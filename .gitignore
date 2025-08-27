@@ -1,0 +1,105 @@
+/vendor/
+/var/
+/composer.lock
+/.idea/
+/.phpunit.result.cache
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# PHP Composer (librairie/bundle)
+composer.lock
+/vendor/
+
+# Symfony runtime
+/var/
+/var/*
+!/var/.gitkeep
+
+# Env files
+.env.local
+.env.*.local
+.env.test.local
+/.env.local.php
+
+# Logs, cache, sessions (si var ignoré, ceci est redondant mais explicite)
+var/cache/
+/var/cache/*
+var/log/
+/var/log/*
+var/sessions/
+/var/sessions/*
+
+# PHPUnit
+.phpunit.cache/
+/.phpunit.result.cache
+/phpunit.xml
+!phpunit.xml.dist
+/coverage/
+
+# PHP-CS-Fixer
+/.php-cs-fixer.cache
+
+# PHPStan
+/.phpstan
+/.phpstan.cache
+
+# Infection (si utilisé)
+/infection.log
+/.infection
+
+# Node / Frontend
+/node_modules/
+/public/build/
+/assets/build/
+/dist/
+/.npm/
+/.pnpm-store/
+/yarn.lock
+/pnpm-lock.yaml
+/package-lock.json
+
+# Webpack/Encore artifacts
+/.cache/
+/.cache-loader/
+/.eslintcache
+
+# Reports/artifacts
+/build/
+reports/
+*.log
+
+# Misc
+*.swp
+*.swo
+*.tmp
+*.bak
+/Dev-info/docs/attributes.md
+/Dev-info/docs/commands.md
+/Dev-info/docs/config.en.md
+/Dev-info/docs/config.fr.md
+/Dev-info/docs/custom-filters.md
+/Dev-info/docs/filters.md
+/Dev-info/docs/p.txt
+/Dev-info/docs/providers.md
+/Dev-info/docs/README.md
+/Dev-info/docs/usage.md
+/Dev-info/geolocator_bundle_appendix.txt
+/Dev-info/geolocator_bundle_prompt_full.txt
+/Dev-info/GeolocatorBundle_Rapport.md
+/Dev-info/GeolocatorBundle_Tests.md
+/Dev-info/phpunit.xml.dist.old
+/Dev-info/plan.md
+/Dev-info/rapport.md
+/Dev-info/README.md
+/Dev-info/README-TESTS.md
+/Dev-info/tasks.md
+/public/banned.css
+/NeoxFireGeolocatorBundle.zip
+/phpstan-baseline.neon

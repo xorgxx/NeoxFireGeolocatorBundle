@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+{% trans_default_domain 'geolocator' %}
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ 'page.banned.meta_title'|trans }}</title>
+    {{ include('@NeoxFireGeolocator/partials/geolocator-css.html.twig') }}
+    {#    <link rel="stylesheet" href="{{ asset('bundles/geolocator/banned.css') }}">#}
+</head>
+<body>
+<section class="gl-wrap">
+  <div class="gl-card" role="status" aria-live="polite">
+    <div class="gl-icon">🚫</div>
+    <h1 class="gl-title">{{ 'page.banned.title'|trans }}</h1>
+    <p class="gl-lead">{{ 'page.banned.lead'|trans }}</p>
+
+    {# Contexte utilisateur #}
+    {% if ctx is defined and ctx %}
+      <div class="gl-context">
+        {% if ctx.ip %}
+          <div class="gl-kv">
+            <span>{{ 'label.ip'|trans }}</span>
+            <b>{{ ctx.ip }}</b>
+          </div>
+        {% endif %}
+        <div class="gl-kv">
+          <span>{{ 'label.country'|trans }}</span>
+          <b>
+            {% if ctx.countryCode %}
+              {{ country_flag(ctx.countryCode) }} {{ ctx.country }} ({{ ctx.countryCode }})
+            {% else %}
+              {{ 'label.na'|trans }}
+            {% endif %}
+          </b>
+        </div>
+      </div>
+    {% endif %}
+
+    {# Mesures/temporisations #}
+    <div class="gl-context">
+      <div class="gl-kv">
+        <span>{{ 'label.attempts_current'|trans }}</span>
+        <b>{{ (ban is defined and ban.attempts is defined) ? ban.attempts : (attempts ?? 0) }}</b>
+      </div>
+
+      {% if attempts_ttl is defined and attempts_ttl is not null %}
+        <div class="gl-kv">
+          <span>{{ 'label.attempts_ttl'|trans }}</span>
+          <b>{{ attempts_ttl|date('H:i:s') }}</b>
+        </div>
+      {% endif %}
+
+      {% if ban_ttl is defined and ban_ttl is not null %}
+        <div class="gl-kv">
+          <span>{{ 'label.ban_remaining'|trans }}</span>
+          <b>{{ ban_ttl|date('H:i:s') }}</b>
+        </div>
+      {% endif %}
+
+      {% if retry_at is defined and retry_at %}
+        <div class="gl-kv">
+          <span>{{ 'label.retry_at'|trans }}</span>
+          <b>
+            <time id="gl-retry-at"
+                  datetime="{{ retry_at|date('c') }}"
+                  data-fallback="{{ retry_at|date('Y-m-d H:i:s') }} UTC">
+              {{ retry_at|date('Y-m-d H:i:s') }} UTC
+            </time>
+          </b>
+        </div>
+      {% endif %}
+
+      {% if ban is defined and ban.reason is defined %}
+        <div class="gl-kv">
+          <span>{{ 'label.reason'|trans }}</span>
+          <b>{{ ban.reason }}</b>
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="gl-actions">
+      <a href="javascript:history.back()" class="gl-btn gl-secondary">↩︎ {{ 'action.back'|trans }}</a>
+      <a href="/" class="gl-btn gl-primary">🏠 {{ 'action.home'|trans }}</a>
+    </div>
+
+    <p class="gl-help">{{ 'page.banned.help'|trans }}</p>
+  </div>
+</section>
+<script>
+  (function() {
+    try {
+      var el = document.getElementById('gl-retry-at');
+      if (!el) return;
+      var iso = el.getAttribute('datetime');
+      var fallback = el.getAttribute('data-fallback') || el.textContent;
+      var d = new Date(iso);
+      if (isNaN(d.getTime())) { el.textContent = fallback; return; }
+      var fmt = new Intl.DateTimeFormat(undefined, {
+        weekday: 'short',
+        hour: '2-digit', minute: '2-digit', second: '2-digit',
+        hour12: false, timeZoneName: 'short'
+      });
+      el.textContent = fmt.format(d);
+      el.removeAttribute('data-fallback');
+    } catch (e) { /* fallback */ }
+  })();
+</script>
+</body>
+</html>

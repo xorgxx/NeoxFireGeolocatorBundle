@@ -1,0 +1,15 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Neox\FireGeolocatorBundle\Event;
+
+use Neox\FireGeolocatorBundle\DTO\GeoApiContextDTO;
+use Symfony\Contracts\EventDispatcher\Event;
+
+class GeolocatorContextResolvedEvent extends Event
+{
+    public function __construct(public ?GeoApiContextDTO $context)
+    {
+    }
+}

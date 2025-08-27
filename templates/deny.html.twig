@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+{% trans_default_domain 'geolocator' %}
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>{{ 'page.deny.meta_title'|trans }}</title>
+    {{ include('@NeoxFireGeolocator/partials/geolocator-css.html.twig') }}
+    {#    <link rel="stylesheet" href="{{ asset('bundles/geolocator/banned.css') }}">#}
+</head>
+<body>
+<section class="gl-wrap">
+    <div class="gl-card" role="status" aria-live="polite">
+        <div class="gl-icon">⛔</div>
+        <h1 class="gl-title">{{ 'page.deny.title'|trans }}</h1>
+        <p class="gl-lead">{{ 'page.deny.lead'|trans }}</p>
+
+        <div class="gl-context">
+            <div class="gl-kv">
+                <span>{{ 'label.reason'|trans }}</span>
+                <b>{{ auth.reason ?? ('label.na'|trans) }}</b>
+            </div>
+
+            {% if ctx is defined and ctx %}
+                {% if ctx.ip %}
+                    <div class="gl-kv">
+                        <span>{{ 'label.ip'|trans }}</span>
+                        <b>{{ ctx.ip }}</b>
+                    </div>
+                {% endif %}
+                <div class="gl-kv">
+                    <span>{{ 'label.country'|trans }}</span>
+                    <b>
+                        {% if ctx.countryCode %}
+                            {{ country_flag(ctx.countryCode) }} {{ ctx.country }} ({{ ctx.countryCode }})
+                        {% else %}
+                            {{ 'label.na'|trans }}
+                        {% endif %}
+                    </b>
+                </div>
+            {% endif %}
+
+            {% if attempts_left is defined %}
+                <div class="gl-kv">
+                    <span>{{ 'page.deny.attempts_left'|trans }}</span>
+                    <b>{{ attempts_left }}</b>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="gl-actions">
+            <a href="javascript:history.back()" class="gl-btn gl-secondary">↩︎ {{ 'action.back'|trans }}</a>
+            <a href="/" class="gl-btn gl-primary">🏠 {{ 'action.home'|trans }}</a>
+        </div>
+
+        <p class="gl-help">{{ 'page.banned.help'|trans }}</p>
+    </div>
+</section>
+
+</body>
+</html>

@@ -1,0 +1,25 @@
+includes:
+    - phpstan-baseline.neon
+parameters:
+    level: 5
+    paths:
+        - src
+    bootstrapFiles:
+        # Try local vendor first (if running phpstan from project root)
+        - vendor/autoload.php
+        # And also support running from inside the bundle directory
+        - ../../vendor/autoload.php
+    excludePaths:
+        analyse:
+            - vendor
+            - var
+            - node_modules
+            - */tests/*
+    ignoreErrors:
+        - identifier: missingType.generics
+    reportUnmatchedIgnoredErrors: false
+    treatPhpDocTypesAsCertain: false
+    checkMissingIterableValueType: true
+    checkGenericClassInNonGenericObjectType: true
+    checkUnionTypes: true
+    checkExplicitMixed: true

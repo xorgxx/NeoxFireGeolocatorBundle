@@ -1,0 +1,3 @@
+geolocator:
+  maintenance:
+    default_message: 'Site under maintenance. Please come back later.'

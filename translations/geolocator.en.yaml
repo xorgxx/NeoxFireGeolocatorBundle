@@ -1,0 +1,29 @@
+page:
+  deny:
+    meta_title: 'Access denied • Geolocator'
+    title: 'Access denied'
+    lead: 'Your request has been blocked by a security rule.'
+    attempts_left: 'Attempts remaining before ban'
+  banned:
+    meta_title: 'Temporarily blocked • Geolocator'
+    title: 'You are temporarily blocked'
+    lead: 'Due to too many attempts, access is temporarily restricted. Try again later.'
+    help: 'If you believe this is an error, contact support and include your IP.'
+label:
+  reason: 'Reason'
+  na: 'n/a'
+  ip: 'IP'
+  country: 'Country'
+  attempts_current: 'Attempts (current window)'
+  attempts_ttl: 'Remaining TTL (attempts window)'
+  ban_remaining: 'Remaining block duration'
+  retry_at: 'You can retry'
+action:
+  back: 'Back'
+  home: 'Home'
+problem:
+  denied:
+    title: 'Access denied'
+  banned:
+    title: 'Too Many Requests'
+    detail: 'You have been temporarily blocked due to too many attempts.'

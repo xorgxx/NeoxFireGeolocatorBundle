@@ -1,0 +1,242 @@
+# ======================================================================
+# Neox Fire Geolocator Bundle — Services configuration
+# This file is organized by categories with clear section titles.
+# ======================================================================
+
+services:
+    # ==============================================================
+    # Defaults: autowiring, autoconfiguration, visibility
+    # ==============================================================
+    _defaults:
+        autowire: true
+        autoconfigure: true
+        public: false
+
+    # ==============================================================
+    # Interface-based tags: apply filter tag to all FilterInterface
+    # ==============================================================
+    _instanceof:
+        Neox\FireGeolocatorBundle\Service\Filter\FilterInterface:
+            tags:
+                - { name: 'neox_fire_geolocator.filter', priority: 0 }
+
+    # ==============================================================
+    # Auto-discovery: register bundle services except excluded folders
+    # ==============================================================
+    Neox\FireGeolocatorBundle\:
+        resource: '../src/*'
+        exclude: '../src/{DependencyInjection,Resources,Model,Entity,Tests}'
+
+    # ==============================================================
+    # Logging
+    # ==============================================================
+    Neox\FireGeolocatorBundle\Service\Log\GeolocatorFileLogger:
+        arguments:
+            $logDir: '%kernel.logs_dir%'
+            $channel: '%neox_fire_geolocator.log_channel%'
+            $level: '%neox_fire_geolocator.log_level%'
+        public: true
+
+    Neox\FireGeolocatorBundle\Service\Log\GeolocatorLoggerInterface: '@Neox\FireGeolocatorBundle\Service\Log\GeolocatorFileLogger'
+
+    # ==============================================================
+    # HTTP client
+    # ==============================================================
+    Symfony\Contracts\HttpClient\HttpClientInterface: '@http_client'
+
+    # ==============================================================
+    # Controller argument value resolver
+    # ==============================================================
+    Neox\FireGeolocatorBundle\ValueResolver\GeoApiContextValueResolver:
+        tags: [ 'controller.argument_value_resolver' ]
+
+    # ==============================================================
+    # Profiler (DataCollector)
+    # ==============================================================
+    Neox\FireGeolocatorBundle\Service\Profiler\NeoxFireGeolocatorDataCollector:
+        public: true
+        lazy: false
+        tags:
+            - { name: data_collector, template: '@NeoxFireGeolocator/Collector/geolocator.html.twig', id: 'neox_fire_geolocator' }
+
+    # ==============================================================
+    # Event listeners
+    # ==============================================================
+    Neox\FireGeolocatorBundle\EventListener\GeolocatorRequestListener:
+        arguments:
+            $config: '%neox_fire_geolocator.config%'
+            $resolver: '@Neox\FireGeolocatorBundle\Service\GeoContextResolver'
+            $responseFactory: '@Neox\FireGeolocatorBundle\Service\ResponseFactory'
+            $ban: '@Neox\FireGeolocatorBundle\Service\BanManager'
+            $exclusions: '@Neox\FireGeolocatorBundle\Service\ExclusionManager'
+            $logger: '@Neox\FireGeolocatorBundle\Service\Log\GeolocatorLoggerInterface'
+            $bridge: '@Neox\FireGeolocatorBundle\Service\Bridge\EventBridgeInterface'
+            $limiterGuard: '@Neox\FireGeolocatorBundle\Service\Security\RateLimiterGuard'
+            $appFilters: '@Neox\FireGeolocatorBundle\Service\Filter\FilterChain'
+
+    Neox\FireGeolocatorBundle\EventListener\TrustedProxyRequestListener:
+        arguments:
+            $geolocatorConfig: '%neox_fire_geolocator.config%'
+        # Relies on #[AsEventListener] (no explicit tag to avoid duplication)
+
+    Neox\FireGeolocatorBundle\EventListener\MaintenanceRequestListener:
+        arguments:
+            $config: '%neox_fire_geolocator.config%'
+        # Relies on #[AsEventListener] with priority 255
+
+    Neox\FireGeolocatorBundle\EventListener\GeoConfigCollectListener:
+        arguments:
+            $attributeResolver: '@Neox\FireGeolocatorBundle\Service\Config\GeoAttributeResolver'
+            $logger: '@Neox\FireGeolocatorBundle\Service\Log\GeolocatorLoggerInterface'
+            $globalConfig: '%neox_fire_geolocator.config%'
+        # Relies on #[AsEventListener] (no explicit tag)
+
+    # ==============================================================
+    # Core services
+    # ==============================================================
+    Neox\FireGeolocatorBundle\Service\GeoContextResolver:
+        factory: [ '@Neox\FireGeolocatorBundle\Service\Factory\GeoContextResolverFactory', 'create' ]
+
+    Neox\FireGeolocatorBundle\Service\Factory\GeoContextResolverFactory:
+        arguments:
+            $client: '@http_client'
+            $cache: '@neox_fire_geolocator.cache_pool'
+            $config: '%neox_fire_geolocator.config%'
+            $logger: '@Neox\FireGeolocatorBundle\Service\Log\GeolocatorLoggerInterface'
+
+    Neox\FireGeolocatorBundle\Service\BanManager:
+        factory: [ '@Neox\FireGeolocatorBundle\Service\Factory\BanManagerFactory', 'create' ]
+
+    Neox\FireGeolocatorBundle\Service\Factory\BanManagerFactory:
+        arguments:
+            $storage: '@neox_fire_geolocator.storage'
+            $config: '%neox_fire_geolocator.config%'
+
+    Neox\FireGeolocatorBundle\Service\ExclusionManager:
+        factory: [ '@Neox\FireGeolocatorBundle\Service\Factory\ExclusionManagerFactory', 'create' ]
+
+    Neox\FireGeolocatorBundle\Service\Factory\ExclusionManagerFactory:
+        arguments:
+            $cache: '@neox_fire_geolocator.cache_pool'
+            $config: '%neox_fire_geolocator.config%'
+
+    Neox\FireGeolocatorBundle\Service\ResponseFactory:
+        arguments:
+            $config: '%neox_fire_geolocator.config%'
+            $router: '@router'
+
+    Neox\FireGeolocatorBundle\Service\ResponseFormatNegotiator: ~
+    Neox\FireGeolocatorBundle\Service\GeoRuleEvaluator: ~
+
+    # ==============================================================
+    # Twig extension
+    # ==============================================================
+    Neox\FireGeolocatorBundle\Service\Twig\GeolocatorTwigExtension:
+        tags: [ 'twig.extension' ]
+
+    # ==============================================================
+    # Event bridge (external integrations)
+    # ==============================================================
+    Neox\FireGeolocatorBundle\Service\Bridge\EventBridgeInterface:
+        factory: [ '@Neox\FireGeolocatorBundle\Service\Factory\ConfiguredEventBridgeFactory', 'create' ]
+
+    Neox\FireGeolocatorBundle\Service\Factory\ConfiguredEventBridgeFactory:
+        arguments:
+            $container: '@service_container'
+            $config: '%neox_fire_geolocator.config%'
+
+    # ==============================================================
+    # Attribute resolver (controller-level config)
+    # ==============================================================
+    Neox\FireGeolocatorBundle\Service\Config\GeoAttributeResolver:
+        arguments:
+            $cacheDir: '%kernel.cache_dir%'
+
+    neox_fire_geolocator.attribute_resolver: '@Neox\FireGeolocatorBundle\Service\Config\GeoAttributeResolver'
+
+    # ==============================================================
+    # Storage and cache bindings
+    # ==============================================================
+    Neox\FireGeolocatorBundle\Service\Cache\StorageFactory: ~
+
+    neox_fire_geolocator.storage:
+        class: Neox\FireGeolocatorBundle\Service\Cache\StorageInterface
+        factory: [ '@Neox\FireGeolocatorBundle\Service\Cache\StorageFactory', 'create' ]
+        arguments:
+            - '%neox_fire_geolocator.config%'
+            - '@?doctrine.orm.entity_manager'
+            - '@logger'
+
+    Neox\FireGeolocatorBundle\Service\Cache\StorageInterface: '@neox_fire_geolocator.storage'
+
+    Psr\Cache\CacheItemPoolInterface: '@neox_fire_geolocator.cache_pool'
+
+    Neox\FireGeolocatorBundle\Service\Cache\CacheKeyResolver:
+        arguments:
+            $requestStack: '@request_stack'
+            $config: '%neox_fire_geolocator.config%'
+
+    # ==============================================================
+    # Console commands
+    # ==============================================================
+    Neox\FireGeolocatorBundle\Command\TestProviderCommand:
+        arguments:
+            $geolocatorConfig: '%neox_fire_geolocator.config%'
+
+    Neox\FireGeolocatorBundle\Command\GeolocatorBanCommand:
+        arguments:
+            $geolocatorConfig: '%neox_fire_geolocator.config%'
+
+    # ==============================================================
+    # Cache warmer
+    # ==============================================================
+    Neox\FireGeolocatorBundle\CacheWarmer\GeoAttributeCacheWarmer:
+        tags:
+            - { name: kernel.cache_warmer }
+        arguments:
+            $router: '@router'
+            $resolver: '@Neox\FireGeolocatorBundle\Service\Config\GeoAttributeResolver'
+
+    # ==============================================================
+    # Security: rate limiter
+    # ==============================================================
+    Neox\FireGeolocatorBundle\Service\Security\RateLimiterGuard:
+        arguments:
+            $factory: '@?limiter.neox_fire_geolocator'
+            $logger: '@Neox\FireGeolocatorBundle\Service\Log\GeolocatorLoggerInterface'
+            $limiterName: 'neox_fire_geolocator'
+
+    # ==============================================================
+    # Core filters (priority defines execution order: higher runs first)
+    # ==============================================================
+    Neox\FireGeolocatorBundle\Service\Filter\Core\IpFilter:
+        autoconfigure: false
+        tags:
+            - { name: 'neox_fire_geolocator.filter', priority: 400 }
+
+    Neox\FireGeolocatorBundle\Service\Filter\Core\VpnFilter:
+        autoconfigure: false
+        tags:
+            - { name: 'neox_fire_geolocator.filter', priority: 300 }
+
+    Neox\FireGeolocatorBundle\Service\Filter\Core\NavigatorFilter:
+        autoconfigure: false
+        tags:
+            - { name: 'neox_fire_geolocator.filter', priority: 200 }
+
+    Neox\FireGeolocatorBundle\Service\Filter\Core\CountryFilter:
+        autoconfigure: false
+        tags:
+            - { name: 'neox_fire_geolocator.filter', priority: 150 }
+
+    Neox\FireGeolocatorBundle\Service\Filter\Core\CrawlerFilter:
+        autoconfigure: false
+        tags:
+            - { name: 'neox_fire_geolocator.filter', priority: 100 }
+
+    # ==============================================================
+    # Filter chain (collects all tagged filters including custom ones)
+    # ==============================================================
+    Neox\FireGeolocatorBundle\Service\Filter\FilterChain:
+        arguments:
+            $filters: !tagged_iterator 'neox_fire_geolocator.filter'

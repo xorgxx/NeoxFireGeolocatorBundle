@@ -1,0 +1,315 @@
+{% extends '@WebProfiler/Profiler/layout.html.twig' %}
+
+{% block toolbar %}
+    {% set icon %}
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+            viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"
+            aria-hidden="true" focusable="false" >
+            <title >Map location</title >
+            <!-- Carte pliée (outline) -->
+            <path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3V6z" />
+            <path d="M9 3v15M15 6v15" />
+
+            <!-- Pin de localisation (outline) -->
+            <path d="M12 8c-1.94 0-3.5 1.56-3.5 3.5 0 2.9 3.5 6.5 3.5 6.5s3.5-3.6 3.5-6.5C15.5 9.56 13.94 8 12 8z" />
+            <circle cx="12" cy="11.5" r="1.25" />
+        </svg >
+
+    {% endset %}
+    {% if collector.enabled %}
+        {% set text %}
+            <div class="sf-toolbar-info-piece" >
+                <b >Provider</b >
+                <span >{{ collector.provider ?? 'n/a' }}</span >
+            </div >
+            <div class="sf-toolbar-info-piece" >
+                <b >IP</b >
+                <span >{{ collector.ip ?? 'n/a' }}</span >
+            </div >
+            <div class="sf-toolbar-info-piece" >
+                <b >Pays</b >
+                <span >
+        {% if collector.countryCode %}
+            {{ country_flag(collector.countryCode) }} {{ collector.countryCode }}
+        {% else %}n/a{% endif %}
+      </span >
+            </div >
+            <div class="sf-toolbar-info-piece" >
+                <b >Localisation</b >
+                <span >
+        {% if collector.city or collector.region %}
+            {{ collector.city ?? '' }}{% if collector.city and collector.region %}, {% endif %}{{ collector.region ?? '' }}
+        {% else %}n/a{% endif %}
+      </span >
+            </div >
+            <div class="sf-toolbar-info-piece" >
+                <b >Réseau</b >
+                <span >
+        {% if collector.vpn %}<span class="sf-toolbar-status sf-toolbar-status-red" >VPN</span >{% else %}<span class="sf-toolbar-status sf-toolbar-status-green" >Pas de VPN</span >{% endif %}
+                    {% if collector.proxy %}<span class="sf-toolbar-status sf-toolbar-status-red" style="margin-left:4px;" >Proxy</span >{% endif %}
+                    {% if collector.hosting %}<span class="sf-toolbar-status sf-toolbar-status-yellow" style="margin-left:4px;" >Hosting</span >{% endif %}
+      </span >
+            </div >
+            <div class="sf-toolbar-info-piece" >
+                <b >ISP</b >
+                <span >{{ collector.isp ?? 'n/a' }}{% if collector.asn %} <small >({{ collector.asn }})</small >{% endif %}</span >
+            </div >
+            <div class="sf-toolbar-info-piece" >
+                <b >Statut</b >
+                <span >
+        {% if not collector.allowed %}
+            <span class="sf-toolbar-status sf-toolbar-status-red" >bloqué</span >
+        {% else %}
+            <span class="sf-toolbar-status sf-toolbar-status-green" >autorisé</span >
+        {% endif %}
+                    {% if collector.simulate %}
+                        <span class="sf-toolbar-status sf-toolbar-status-yellow" >simulate</span >
+                    {% endif %}
+      </span >
+            </div >
+            {% if not collector.allowed and collector.reason %}
+                <div class="sf-toolbar-info-piece" >
+                    <b >Bloqué</b >
+                    <span >{{ collector.reason }}{% if collector.blockingFilter %} ({{ collector.blockingFilter }}){% endif %}</span >
+                </div >
+            {% endif %}
+            <div class="sf-toolbar-info-piece" >
+                <b >Tentatives</b >
+                <span >{{ collector.attempts }}{% if collector.attemptsTtl is not null %} (ttl: {{ collector.attemptsTtl }}s){% endif %}{% if collector.banned %} • <span style="color:#ef4444" >
+                        banned{% if collector.banTtl is not null %} (ttl: {{ collector.banTtl }}s){% endif %}</span >{% endif %}</span >
+            </div >
+            {% if collector.cache %}
+                <div class="sf-toolbar-info-piece" >
+                    <b >Cache</b >
+                    <span >{{ collector.cache.status }} <small >({{ collector.cache.key }})</small ></span >
+                </div >
+            {% endif %}
+            {% if collector.storageStats %}
+                <div class="sf-toolbar-info-piece" >
+                    <b >Storage</b >
+                    <span >{{ collector.storageStats.storage_type }} • bans: {{ collector.storageStats.total_active_bans }} • attempts: {{ collector.storageStats.total_active_attempts }}</span >
+                </div >
+            {% endif %}
+            {% if collector.updatedAt %}
+                <div class="sf-toolbar-info-piece" >
+                    <b >MAJ</b >
+                    <span >{{ collector.updatedAt }}</span >
+                </div >
+            {% endif %}
+        {% endset %}
+    {% else %}
+        {% set text %}
+            <div class="sf-toolbar-info-piece" >
+                <b >FireGeolocator</b >
+                <span >
+                    <span class="sf-toolbar-status sf-toolbar-status-yellow" >off</span >
+                </span >
+            </div >
+        {% endset %}
+    {% endif %}
+
+    {{ include('@WebProfiler/Profiler/toolbar_item.html.twig', { link: true }) }}
+{% endblock %}
+
+{% block menu %}
+    <span class="label" >
+    <span class="icon" >
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+            viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"
+            aria-hidden="true" focusable="false" >
+          <title >Map location</title >
+            <!-- Carte pliée (outline) -->
+          <path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3V6z" />
+          <path d="M9 3v15M15 6v15" />
+
+            <!-- Pin de localisation (outline) -->
+          <path d="M12 8c-1.94 0-3.5 1.56-3.5 3.5 0 2.9 3.5 6.5 3.5 6.5s3.5-3.6 3.5-6.5C15.5 9.56 13.94 8 12 8z" />
+          <circle cx="12" cy="11.5" r="1.25" />
+      </svg ></span >
+
+    <strong >Geolocator</strong >
+    {% if collector.enabled is defined %}
+        <span class="count" >
+            {% if not collector.enabled %}
+                <span class="sf-toolbar-status sf-toolbar-status-yellow" >OFF</span >
+            {% elseif collector.allowed is defined %}
+                <span class="{{ collector.allowed ? 'sf-toolbar-status-green' : 'sf-toolbar-status-red' }}" >
+                    {{ collector.allowed ? 'OK' : 'BLOCK' }}
+                </span >
+            {% else %}
+                <span class="sf-toolbar-status" >N/A</span >
+            {% endif %}
+        </span >
+    {% endif %}
+</span >
+{% endblock %}
+
+{% block panel %}
+    <h2 >Geolocator</h2 >
+
+    <h3 >Contexte</h3 >
+    <div class="metrics" >
+        <div class="metric" >
+            <span class="value" >{{ collector.provider ?? 'n/a' }}</span >
+            <span class="label" >Provider</span >
+        </div >
+        <div class="metric" >
+            <span class="value" >{{ collector.ip ?? 'n/a' }}</span >
+            <span class="label" >IP</span >
+        </div >
+        <div class="metric" >
+      <span class="value" >
+        {% if collector.countryCode %}{{ country_flag(collector.countryCode) }} {{ collector.country }} ({{ collector.countryCode }}){% else %}n/a{% endif %}
+      </span >
+            <span class="label" >Pays</span >
+        </div >
+        <div class="metric" >
+            <span class="value" >{{ collector.city ?? 'n/a' }}</span >
+            <span class="label" >Ville</span >
+        </div >
+        <div class="metric" >
+            <span class="value" >{{ collector.region ?? 'n/a' }}</span >
+            <span class="label" >Région</span >
+        </div >
+        <div class="metric" >
+            <span class="value" >{{ collector.isp ?? 'n/a' }}{% if collector.asn %} ({{ collector.asn }}){% endif %}</span >
+            <span class="label" >ISP / ASN</span >
+        </div >
+        <div class="metric" >
+            <span class="value" >{% if collector.vpn %}⛔ oui{% else %}✔️ non{% endif %}</span >
+            <span class="label" >VPN</span >
+        </div >
+        <div class="metric" >
+            <span class="value" >{% if collector.proxy %}⛔ oui{% else %}✔️ non{% endif %}</span >
+            <span class="label" >Proxy</span >
+        </div >
+        <div class="metric" >
+            <span class="value" >{% if collector.hosting %}⛔ oui{% else %}✔️ non{% endif %}</span >
+            <span class="label" >Hosting</span >
+        </div >
+        <div class="metric" >
+            <span class="value" >{% if collector.allowed %}✔️{% else %}⛔{% endif %}</span >
+            <span class="label" >Autorisé</span >
+        </div >
+        {% if not collector.allowed %}
+            <div class="metric" >
+                <span class="value" >{{ collector.reason }}{% if collector.blockingFilter %} ({{ collector.blockingFilter }}){% endif %}</span >
+                <span class="label" >Raison du blocage</span >
+            </div >
+        {% endif %}
+        <div class="metric" >
+            <span class="value" >{% if collector.simulate %}🟡 ON{% else %}⚪ OFF{% endif %}</span >
+            <span class="label" >Mode simulation</span >
+            {% if collector.requestUri %}
+                {% set base = collector.requestUri %}
+                {% if 'geo_simulate=' in base %}
+                    {% set onUrl = base|replace({'geo_simulate=0':'geo_simulate=1','geo_simulate=false':'geo_simulate=1','geo_simulate=no':'geo_simulate=1','geo_simulate=off':'geo_simulate=1'}) %}
+                    {% set offUrl = base|replace({'geo_simulate=1':'geo_simulate=0','geo_simulate=true':'geo_simulate=0','geo_simulate=yes':'geo_simulate=0','geo_simulate=on':'geo_simulate=0'}) %}
+                {% else %}
+                    {% if '?' in base %}
+                        {% set onUrl = base ~ '&geo_simulate=1' %}
+                        {% set offUrl = base ~ '&geo_simulate=0' %}
+                    {% else %}
+                        {% set onUrl = base ~ '?geo_simulate=1' %}
+                        {% set offUrl = base ~ '?geo_simulate=0' %}
+                    {% endif %}
+                {% endif %}
+                <div class="help" ><a href="{{ onUrl }}" >Activer</a > • <a href="{{ offUrl }}" >Désactiver</a ></div >
+            {% endif %}
+        </div >
+        {% if collector.updatedAt %}
+            <div class="metric" >
+                <span class="value" >{{ collector.updatedAt }}</span >
+                <span class="label" >Dernière collecte</span >
+            </div >
+        {% endif %}
+    </div >
+
+    <h3 >Carte</h3 >
+    {% if collector.lat is not null and collector.lon is not null %}
+        {% set lat = collector.lat %}
+        {% set lon = collector.lon %}
+        {% set d = 0.02 %}
+        {% set left = lon - d %}
+        {% set right = lon + d %}
+        {% set top = lat + d %}
+        {% set bottom = lat - d %}
+        <div class="sf-toolbar-info-piece" style="margin-bottom: 6px;" >
+            <b >Position</b > <span >{{ lat }}, {{ lon }}</span >
+        </div >
+        <div style="border:1px solid #ddd; border-radius:4px; overflow:hidden; height:260px;" >
+            <iframe
+                title="Carte (OpenStreetMap)"
+                src="https://www.openstreetmap.org/export/embed.html?bbox={{ left }},{{ bottom }},{{ right }},{{ top }}&layer=mapnik&marker={{ lat }},{{ lon }}"
+                style="width:100%; height:100%; border:0;"
+                loading="lazy"
+                referrerpolicy="no-referrer-when-downgrade" ></iframe >
+        </div >
+        <div style="margin-top:6px;" >
+            <a href="https://www.openstreetmap.org/?mlat={{ lat }}&mlon={{ lon }}#map=11/{{ lat }}/{{ lon }}" target="_blank" rel="noopener" >Ouvrir dans OpenStreetMap</a >
+        </div >
+    {% elseif collector.city %}
+        <div class="empty" ><p >Coordonnées indisponibles. Ville détectée: <b >{{ collector.city }}</b >{% if collector.countryCode %}, {{ collector.countryCode }}{% endif %}.
+                <a href="https://www.openstreetmap.org/search?query={{ (collector.city ~ (collector.countryCode ? ' ' ~ collector.countryCode : ''))|url_encode }}" target="_blank" rel="noopener" >Rechercher sur
+                                                                                                                                                                                                    OpenStreetMap</a >
+            </p ></div >
+    {% else %}
+        <div class="empty" ><p >Carte indisponible (ville/coordonnées manquantes).</p ></div >
+    {% endif %}
+
+    <h3 >Cache</h3 >
+    {% if collector.cache %}
+        <div class="sf-toolbar-info-piece" >
+            <b >Key</b > <span >{{ collector.cache.key }}</span >
+        </div >
+        <div class="sf-toolbar-info-piece" >
+            <b >Status</b > <span >{{ collector.cache.status }}{% if collector.cache.ttl is defined %} (ttl: {{ collector.cache.ttl }}s){% endif %}</span >
+        </div >
+    {% else %}
+        <div class="empty" ><p >Aucune donnée de cache pour cette requête.</p ></div >
+    {% endif %}
+
+    <h3 >Tentatives & Ban</h3 >
+    <div class="metrics" >
+        <div class="metric" >
+            <span class="value" >{{ collector.attempts }}</span >
+            <span class="label" >Tentatives dans la fenêtre</span >
+        </div >
+        {% if collector.attemptsTtl is not null %}
+            <div class="metric" >
+                <span class="value" >{{ collector.attemptsTtl }}s</span >
+                <span class="label" >TTL restant (fenêtre tentatives)</span >
+            </div >
+        {% endif %}
+        <div class="metric" >
+            <span class="value" >{% if collector.banned %}⛔ oui{% else %}✔️ non{% endif %}</span >
+            <span class="label" >Banni</span >
+        </div >
+        {% if collector.banned and collector.banTtl is not null %}
+            <div class="metric" >
+                <span class="value" >{{ collector.banTtl }}s</span >
+                <span class="label" >TTL restant (ban)</span >
+            </div >
+        {% endif %}
+    </div >
+    {% if collector.ban %}
+        <div class="sf-toolbar-info-piece" >
+            <b >Ban info</b >
+            <span >
+        {% if collector.ban.banned_until is defined %}jusqu'au {{ collector.ban.banned_until }}{% endif %}
+                {% if collector.ban.reason is defined %} • raison: {{ collector.ban.reason }}{% endif %}
+      </span >
+        </div >
+    {% endif %}
+
+    <h3 >Storage</h3 >
+    {% if collector.storageStats %}
+        <div class="sf-toolbar-info-piece" ><b >Type</b > <span >{{ collector.storageStats.storage_type }}</span ></div >
+        <div class="sf-toolbar-info-piece" ><b >Bans actifs</b > <span >{{ collector.storageStats.total_active_bans }}</span ></div >
+        <div class="sf-toolbar-info-piece" ><b >Tentatives actives</b > <span >{{ collector.storageStats.total_active_attempts }}</span ></div >
+    {% else %}
+        <div class="empty" ><p >Statistiques de stockage indisponibles.</p ></div >
+    {% endif %}
+{% endblock %}

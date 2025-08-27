@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Crawler bloqué • Geolocator</title>
+    {{ include('@NeoxFireGeolocator/partials/geolocator-css.html.twig') }}
+    {#    <link rel="stylesheet" href="{{ asset('bundles/geolocator/banned.css') }}">#}
+</head>
+<body>
+<section class="gl-wrap">
+    <div class="gl-card" role="status" aria-live="polite">
+        <div class="gl-icon">🤖</div>
+        <h1 class="gl-title">{{ 'page.crawler.title'|trans({}, 'geolocator') is not empty ? 'page.crawler.title'|trans({}, 'geolocator') : 'Accès restreint (crawler)' }}</h1>
+        <p class="gl-lead">{{ 'page.crawler.lead'|trans({}, 'geolocator') is not empty ? 'page.crawler.lead'|trans({}, 'geolocator') : 'Votre user-agent a été identifié comme un robot. L’accès est restreint.' }}</p>
+
+        <div class="gl-context">
+            <div class="gl-kv">
+                <span>{{ 'label.reason'|trans({}, 'geolocator') is not empty ? 'label.reason'|trans({}, 'geolocator') : 'Raison' }}</span>
+                <b>{{ reason ?? 'crawler_detected' }}</b>
+            </div>
+
+            <div class="gl-kv">
+                <span>User-Agent</span>
+                <b>{{ ua ?? (ctx.ua ?? 'N/A') }}</b>
+            </div>
+
+            {% if ctx is defined and ctx %}
+                {% if ctx.ip %}
+                    <div class="gl-kv">
+                        <span>IP</span>
+                        <b>{{ ctx.ip }}</b>
+                    </div>
+                {% endif %}
+                {% if ctx.countryCode is defined or ctx.country is defined %}
+                    <div class="gl-kv">
+                        <span>Pays</span>
+                        <b>
+                            {% if ctx.countryCode %}
+                                {{ country_flag(ctx.countryCode) }} {{ ctx.country }} ({{ ctx.countryCode }})
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </b>
+                    </div>
+                {% endif %}
+            {% endif %}
+        </div>
+
+        <div class="gl-actions">
+            <a href="/" class="gl-btn gl-primary">🏠 Accueil</a>
+        </div>
+
+        <p class="gl-help">{{ 'page.banned.help'|trans({}, 'geolocator') is not empty ? 'page.banned.help'|trans({}, 'geolocator') : 'Si vous pensez qu’il s’agit d’une erreur, contactez le support et indiquez votre IP et votre User-Agent.' }}</p>
+    </div>
+</section>
+
+</body>
+</html>

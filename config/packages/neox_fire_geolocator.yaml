@@ -1,0 +1,216 @@
+neox_fire_geolocator:
+    # Global bundle activation - Master switch to enable/disable the entire geolocation system
+    enabled: true
+
+    # Mercure subscription settings (fully managed by Geolocator)
+    #    mercure:
+    #        enabled: true
+    #        auto_inject: true
+    #        turbo_enabled: true
+    #        only_authenticated: false
+    #        public_url: '%env(MERCURE_PUBLIC_URL)%'
+    #        default_topic: 'geo_notificator/stream'
+
+    # Event bridge service for custom notifications - Service name for external notification system (optional)
+    event_bridge_service: null
+
+    # Automatic fallback mode - Enables fallback to local provider when all external providers fail
+    provider_fallback_mode: true
+
+    # Redirect route/URL when user is banned - Route name or URL path for banned users redirection
+    # redirect_on_ban: '/banned'
+
+    # Monolog channel name - Custom logging channel for geolocation events
+    log_channel: 'geolocator'
+
+    # Monolog log level - Minimum log level for geolocation messages (debug, info, notice, warning, error, critical)
+    log_level: 'debug'
+
+    # Simulation mode - When enabled, blocks are logged but users aren't actually redirected/blocked
+    simulate: true
+
+    exclusion_key: 'ip-72.67.99.79'
+
+    maintenance:
+        enabled: false                 # Activate/deactivate maintenance mode
+        allowed_roles: ['ROLE_ADMIN']  # Roles authorized during maintenance
+        paths_whitelist:               # Authorized path prefixes
+            - '/login'
+            - '/_profiler'
+            - '/_wdt'
+            - '/healthz'
+            - '/assets'
+        ips_whitelist:             # IPs authorized (ex: ['127.0.0.1', '::1'])
+            - '127.0.0.10'         # Local loopback interface
+            - '10.0.0.0/8'         # RFC 1918 private network
+            - '172.16.0.0/12'      # RFC 1918 private network
+            - '192.168.0.0/16'     # RFC 1918 private network
+
+        retry_after: 600                  # Rely-AFTER header in seconds (503)
+        message: null                     # Gross message if no template (otherwise use i18n)
+        template: null
+
+
+    cache:
+        key_strategy: 'session'   # 'session' ou 'ip' (par défaut 'ip')
+        context_ttl: 3600         # temps de conservation des information sur ip dans le cache
+        redis_dsn: '%env(REDIS_DSN)%'
+
+    # Asynchronous processing configuration
+    #    async:
+    #        # Enable async mode - Process geolocation requests in background queues
+    #        enabled: false
+    #
+    #        # Messenger transport name - Symfony Messenger transport for async processing
+    #        transport: geolocator_async
+    #
+    #        # Maximum retry attempts - How many times to retry failed async jobs
+    #        retry_limit: 3
+    #
+    #        # Retry delay in milliseconds - Wait time between retry attempts
+    #        retry_delay: 1000
+
+    # Provider configuration section
+    providers:
+        default: 'findip'
+        list:
+            findip:
+                dsn: 'findip+https://api.findip.net/{ip}/?token={token}'
+                variables: { token: '%env(FINDIP_APIKEY)%' }
+            ipinfo:
+                dsn: 'ipinfo+https://ipinfo.io/{ip}?token={token}'
+                variables: { token: '%env(FINDIP_APIKEY)%' }
+            ipapi:
+                dsn: 'ipapi+http://ip-api.com/json/{ip}?fields=status,country,countryCode,regionName,city,lat,lon,isp,as,proxy,hosting,query'
+
+    # Data storage configuration
+    storage:
+        # JSON file storage (commented example)
+        # dsn: 'file://%kernel.project_dir%/var/geolocator_bans.json'
+
+        # Redis storage - High-performance caching and ban management
+        dsn: '%env(REDIS_DSN)%'
+
+        # Doctrine database storage (commented example)
+        # dsn: 'doctrine://default/geolocator_bans'
+
+    # Ban management system configuration
+    bans:
+        # Maximum failed attempts - Number of blocked requests before temporary ban
+        max_attempts: 10
+
+        # Time-to-live in seconds - How long to track failed attempts (1 hour)
+        ttl: 3600
+
+        # Ban duration - How long users stay banned (human-readable format)
+        ban_duration: '1 hour'
+
+    # Request filtering system
+    filters:
+        vpn:
+            enabled: true
+            default_behavior: 'allow'  # 'allow' or 'block'
+            priority: 300
+
+        # Navigator/Browser filtering system
+        navigator:
+            # Enable navigator detection and filtering
+            enabled: true
+
+            # Default behavior when no rule matches
+            default_behavior: 'allow'  # 'allow' or 'block'
+
+            priority: 200
+
+            # Navigator filtering rules - Patterns to match in User-Agent strings
+            rules:
+                - '+chrome'             # Allow Chrome browsers
+                - '+firefox'            # Allow Firefox browsers
+                - '+safari'             # Allow Safari browsers
+                - '+edge'               # Allow Microsoft Edge
+                - '-android'            # Block Android User-Agents
+                - '-mobile safari'      # Block mobile Safari
+
+        # Country-based filtering
+        country:
+            default_behavior: 'allow'   # 'allow' or 'block'
+            priority: 150
+            rules:                      # List of rules
+                - '+FR'
+                - '-BE'
+
+        # IP address filtering
+        ip:
+            default_behavior: 'allow'  # 'allow' or 'block'
+            priority: 400
+            # List of allowed IP addresses and CIDR blocks
+            rules:
+                - "+82.67.99.78"
+                - '+127.0.0.1'       # Localhost
+                - '+192.168.1.0/24'  # Private network range
+                - '-1.2.3.4'         # Specific IP address
+                - '-100.67.99.0/24'  # IP range block
+
+        # Web crawler/bot filtering system
+        crawler:
+            # Enable crawler detection and filtering
+            enabled: true
+
+            # Allow known legitimate crawlers - Permits recognized search engine bots
+            allow_known: true
+
+            default_behavior: 'allow'  # 'allow' or 'block' important if allow you have not add [+rules]...
+
+            priority: 100
+
+            # Specific crawler allowlist (highest priority) - User-Agent patterns to always allow
+            rules:
+                - '+googlebot'           # Google Search Bot
+                - '+bingbot'             # Microsoft Bing Bot
+                - '+facebookexternalhit' # Facebook Link Preview
+                - '+twitterbot'          # Twitter/X Card Validator
+                - '+linkedinbot'         # LinkedIn Content Parser
+                - '-whatsapp'            # WhatsApp Link Preview
+                - '-telegrambot'         # Telegram Bot Platform
+                - '-slackbot'            # Slack Link Unfurling
+                - '-discordbot'          # Discord Link Embedding
+                - "-Proxad"
+
+                # Specific crawler blocklist (highest priority) - User-Agent patterns to always block
+                - '-scrapy'              # Python web scraping framework
+                - '-curl'                # Command-line HTTP client
+                - '-wget'                # File download utility
+                - '-python-requests'     # Python HTTP library
+                - '-beautifulsoup'       # Python web scraping library
+                - '-selenium'            # Browser automation tool
+                - '-phantomjs'           # Headless browser (deprecated)
+                - '-headless'            # Generic headless browser identifier
+
+    # Trusted proxy configuration for accurate IP detection
+    trusted:
+        # HTTP headers to check for real client IP - Headers used by load balancers/proxies
+        headers:
+            - 'X-Forwarded-For'   # Standard proxy header
+            - 'X-Real-IP'         # Nginx real IP header
+            - 'X-Forwarded-Host'  # Original host header
+            - 'X-Forwarded-Proto' # Original protocol header
+            - 'CF-Connecting-IP'  # Cloudflare
+            - 'True-Client-IP'    # Akamai
+            - 'Fastly-Client-Ip'  # Fastly
+            - 'X-Client-IP'       # Some proxies/CDNs
+
+        # List of trusted proxy IP addresses/ranges - IPs allowed to modify request headers
+        proxies:
+            - '127.0.0.1'          # Local loopback interface
+            - '10.0.0.0/8'         # RFC 1918 private network
+            - '172.16.0.0/12'      # RFC 1918 private network
+            - '192.168.0.0/16'     # RFC 1918 private network
+
+        # Routes exempt from geolocation checks - Symfony route patterns to skip processing
+        routes:
+            - '_wdt*'           # Symfony Web Debug Toolbar
+            - '_profiler*'      # Symfony Web Profiler
+            - 'symfony_*'       # Symfony internal routes
+            - 'api_doc*'        # API documentation routes
+            - 'fos_js_*'        # FOSJsRouting bundle routes
+
