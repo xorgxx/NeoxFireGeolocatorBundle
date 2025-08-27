@@ -3,7 +3,6 @@
     "description": "GeolocatorBundle - Restrict access to routes/controllers based on geolocation (classic structure).",
     "type": "symfony-bundle",
     "license": "MIT",
-    "version": "2.1.0",
     "require": {
         "php": ">=8.1",
         "symfony/framework-bundle": "^7.0",
