@@ -11,7 +11,10 @@
   - la **géolocalisation**  
   - l’**adresse IP**  
   - l’**agent utilisateur** (navigateur/crawler)  
-  - la **détection VPN/Proxy**  
+  - la **détection VPN/Proxy**
+  - Règle applicable à une ou plusieurs routes 
+  - Création de vos propres règles (ex. : une route accessible uniquement à certaines heures, …)
+
 
 - Il s’intègre au cycle de vie des requêtes HTTP, applique une **chaîne de filtres configurable**, gère **exclusions et bans temporaires**, et renvoie des réponses adaptées (**HTML, JSON, problem+json**) avec un mode **simulation**.
 
@@ -185,7 +188,10 @@ php bin/console neox:firegeolocator:maintenance status
   - geolocation  
   - IP address  
   - user agent (navigator/crawler)  
-  - VPN/Proxy detection  
+  - VPN/Proxy detection 
+  - Rule applicable to one or multiple routes
+  - Creation of your own custom rules (e.g., a route accessible only at specific times, …)
+
 
 - It plugs into the HTTP request cycle, applies a **configurable filter chain**, manages **exclusions and bans**, and returns responses (**HTML / JSON / problem+json**) with a **simulation mode**.
 

@@ -1,2 +1,20 @@
 parameters:
-	ignoreErrors: []
+    ignoreErrors:
+        -
+            message: '#Method Neox\\FireGeolocatorBundle\\Service\\Cache\\DoctrineStorage::getAll\(\) should return array\{bans.*\}#'
+            path: src/Service/Cache/DoctrineStorage.php
+        -
+            message: '#Predis\\Client#'
+            path: src/Service/Cache/RedisStorageManager.php
+        -
+            message: '#Call to method .* on an unknown class Predis\\Client#'
+            path: src/Service/Cache/RedisStorageManager.php
+        -
+            message: '#CacheRepositoryFactory::create\(\) has invalid return type.*CacheRepositoryInterface#'
+            path: src/Service/Factory/CacheRepositoryFactory.php
+        -
+            message: '#Instantiated class Neox\\FireGeolocatorBundle\\Service\\Cache\\Sav\\RedisCacheRepository not found#'
+            path: src/Service/Factory/CacheRepositoryFactory.php
+        -
+            message: '#Instantiated class Neox\\FireGeolocatorBundle\\Service\\Cache\\Sav\\DoctrineCacheRepository not found#'
+            path: src/Service/Factory/CacheRepositoryFactory.php

@@ -8,7 +8,7 @@ parameters:
         # Try local vendor first (if running phpstan from project root)
         - vendor/autoload.php
         # And also support running from inside the bundle directory
-        - ../../vendor/autoload.php
+        #- ../../vendor/autoload.php
     excludePaths:
         analyse:
             - vendor
