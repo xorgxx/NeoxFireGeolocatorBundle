@@ -21,8 +21,7 @@ jobs:
           tools: composer:v2
           extensions: ctype, iconv, intl, json, mbstring, pdo, pdo_mysql, redis
           ini-values: memory_limit=-1
-          cache: composer
-
+      
       - name: Validate Composer configuration
         run: composer validate --strict
 
