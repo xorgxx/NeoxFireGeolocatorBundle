@@ -64,8 +64,6 @@ class GeolocatorRequestListener
             return;
         }
 
-
-
         // Effective simulate mode: allow per-request override via query parameter ?geo_simulate=1|0
         $simulate = $this->resolveSimulateMode($request, $cfg);
         $request->attributes->set(self::ATTR_SIMULATE, $simulate);

@@ -47,7 +47,7 @@ class NeoxFireGeolocatorDataCollector extends DataCollector
             $auth = $tmpA instanceof AuthorizationDTO ? $tmpA : null;
         }
 
-        $enabled    = $cfg?->enabled ?: false;
+        $enabled   = $cfg?->enabled ?: false;
         $ip        = $ctx?->ip ?: ($request->getClientIp() ?: null);
         $providers = $cfg instanceof ResolvedGeoApiConfigDTO ? ($cfg->getProviders()['list'] ?? []) : [];
         $provider  = $cfg instanceof ResolvedGeoApiConfigDTO ? $cfg->getSelectedProviderAlias($providers) : null;
