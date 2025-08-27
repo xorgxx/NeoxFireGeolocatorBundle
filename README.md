@@ -163,7 +163,12 @@ php bin/console neox:firegeolocator:maintenance status
   `https://yourapp.test/secure?geo_simulate=1`
 
 ---
+### ✅ TODO 
+ - Introdure le - RGPD !!
+ - Mode asynchrone -> RabbitMq
+ - wss -> mercure
 
+___
 ### ✅ Bonnes pratiques
 - Configurez **trusted proxies/headers** correctement pour récupérer l’IP client.
 - Ajoutez des **timeouts** via `HttpClient` global.
@@ -246,6 +251,13 @@ See the **French YAML block above** – keys are identical.
 - HTTP: add `?geo_simulate=1`
 
 ---
+### ✅ TODO
+- Introdure le - RGPD !!
+- Mode asynchrone -> RabbitMq
+- wss -> mercure
+
+___
+
 
 ### ✅ Best practices
 - Configure **trusted proxies/headers** and **Redis caching** properly.  
