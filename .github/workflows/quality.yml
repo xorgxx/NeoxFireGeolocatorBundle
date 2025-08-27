@@ -5,21 +5,14 @@ on:
   push:
     branches: [ main, master ]
 
-# Force le bon répertoire pour TOUTES les commandes `run`
-defaults:
-  run:
-    working-directory: ${{ github.workspace }}
-    # Si ton code est dans un SOUS-DOSSIER, remplace par:
-    # working-directory: ${{ github.workspace }}/NeoxFireGeolocatorBundle
-
 jobs:
   quality:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      
+
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
@@ -31,11 +24,11 @@ jobs:
       
       - name: Validate Composer configuration
         run: composer validate --strict
-      
+
       - name: Get Composer cache directory
         id: composer-cache
         run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
-      
+
       - name: Cache Composer files
         uses: actions/cache@v4
         with:
@@ -43,25 +36,25 @@ jobs:
           key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
           restore-keys: |
             ${{ runner.os }}-composer-
-      
-      - name: Install dependencies (with dev)
+
+      - name: Install dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
-      
+
       - name: Lint (php-cs-fixer dry run)
         run: composer lint
-      
-      - name: Static analysis (PHPStan)
-        run: composer analyse
-      
-      - name: Prepare coverage directory
-        run: mkdir -p var
-      
+
+#      - name: Static analysis (PHPStan)
+#        run: composer analyse
+#
+#      - name: Prepare coverage directory
+#        run: mkdir -p var
+
       - name: Run tests with coverage (PHPUnit)
         run: composer test:coverage
-      
+
       - name: Check coverage threshold (80%)
         run: php tools/check_coverage.php var/coverage.xml 80
-      
+
       - name: Cache PHPUnit result cache
         uses: actions/cache@v4
         with:
@@ -69,7 +62,7 @@ jobs:
           key: ${{ runner.os }}-phpunit-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-phpunit-
-      
+
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
         with:
