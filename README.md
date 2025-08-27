@@ -24,7 +24,7 @@
 
 1. **Composer (dans votre application Symfony)**  
    ```bash
-   composer require neox/fire-geolocator-bundle
+   composer require xorgxx/neox-firegeolocator-bundle
    ```
 2. **Activation du bundle**  
    Via Symfony Flex usuel. Sinon, ajouter manuellement dans `config/bundles.php` :  
