@@ -34,9 +34,9 @@ final class NavigatorFilter extends AbstractFilter
         // Deny prioritaire
         $denyHit = RuleHelper::firstMatch($ua, $signed['deny'], $uaMatcher);
         if ($denyHit !== null) {
-            $reason = 'navigator:' . $denyHit;
+            $reason = 'navigator rule';
 
-            return new AuthorizationDTO(false, 'Denied by ' . $reason, $reason);
+            return new AuthorizationDTO(false, $reason, $reason);
         }
 
         // Allow explicite
@@ -46,6 +46,6 @@ final class NavigatorFilter extends AbstractFilter
         }
 
         // Défaut
-        return $defaultAllow ? null : new AuthorizationDTO(false, 'Denied by navigator:default', 'navigator:default');
+        return $defaultAllow ? null : new AuthorizationDTO(false, 'navigator:default', 'navigator:default');
     }
 }

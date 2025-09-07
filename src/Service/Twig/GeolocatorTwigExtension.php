@@ -104,7 +104,7 @@ class GeolocatorTwigExtension extends AbstractExtension
             $auth = $req->attributes->get('geolocator_auth');
         }
 
-        return $this->twig->render('@Geolocator/partials/profile_bar.html.twig', [
+        return $this->twig->render('@NeoxFireGeolocator/partials/profile_bar.html.twig', [
             'ctx'      => $ctx,
             'auth'     => $auth,
             'simulate' => (bool) ($req->attributes->get('geolocator_simulate') ?? false),

@@ -171,7 +171,13 @@ class ResolvedGeoApiConfigDTO
      */
     public function getTrusted(): array
     {
-        return $this->trusted;
+        $trusted = $this->trusted ?? [];
+
+        return [
+            'headers' => array_values($trusted['headers'] ?? []),
+            'proxies' => array_values($trusted['proxies'] ?? []),
+            'routes'  => array_values($trusted['routes'] ?? []),
+        ];
     }
 
     /**

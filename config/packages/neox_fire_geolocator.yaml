@@ -27,7 +27,7 @@ neox_fire_geolocator:
     log_level: 'debug'
 
     # Simulation mode - When enabled, blocks are logged but users aren't actually redirected/blocked
-    simulate: true
+    simulate: false
 
     exclusion_key: 'ip-72.67.99.79'
 
@@ -136,7 +136,7 @@ neox_fire_geolocator:
             default_behavior: 'allow'   # 'allow' or 'block'
             priority: 150
             rules:                      # List of rules
-                - '+FR'
+                - '-FR'
                 - '-BE'
 
         # IP address filtering
@@ -145,7 +145,7 @@ neox_fire_geolocator:
             priority: 400
             # List of allowed IP addresses and CIDR blocks
             rules:
-                - "+82.67.99.78"
+                - "-82.67.99.78"
                 - '+127.0.0.1'       # Localhost
                 - '+192.168.1.0/24'  # Private network range
                 - '-1.2.3.4'         # Specific IP address

@@ -27,10 +27,10 @@
             </div>
 
             {% if ctx is defined and ctx %}
-                {% if ctx.ip %}
+                {% if ip_hash %}
                     <div class="gl-kv">
                         <span>IP</span>
-                        <b>{{ ctx.ip }}</b>
+                        <b>{{ ip_hash }}</b>
                     </div>
                 {% endif %}
                 {% if ctx.countryCode is defined or ctx.country is defined %}

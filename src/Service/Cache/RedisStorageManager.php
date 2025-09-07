@@ -15,7 +15,8 @@ class RedisStorageManager implements StorageInterface
 
     public function __construct(
         private readonly Client $redis,
-        private ?LoggerInterface $logger
+        private ?LoggerInterface $logger,
+        private int $defaultGeoCtxTtl = 300
     ) {
         // Normaliser le logger pour éviter tout TypeError/Null deref
         $this->logger ??= new NullLogger();
@@ -25,7 +26,7 @@ class RedisStorageManager implements StorageInterface
     public function get(string $key, mixed $default = null): mixed
     {
         try {
-            $value = $this->redis->get(self::PREFIX_BAN . $key);
+            $value = $this->redis->get($key);
             if ($value === null) {
                 return $default;
             }
@@ -44,14 +45,20 @@ class RedisStorageManager implements StorageInterface
     {
         try {
             $encodedValue = is_array($value) ? json_encode($value) : $value;
-            $fullKey      = self::PREFIX_BAN . $key;
-            $result       = $this->redis->set($fullKey, $encodedValue);
+            $result       = $this->redis->set($key, $encodedValue);
 
             if ($result) {
                 // Appliquer un TTL aux résultats async pour éviter une rétention illimitée
                 if (str_starts_with($key, 'async_geo_result_')) {
                     // TTL de 600 secondes (10 minutes)
-                    $this->redis->expire($fullKey, 600);
+                    $this->redis->expire($key, 600);
+                }
+                // Appliquer un TTL aux contextes géo pour éviter une rétention illimitée
+                if (str_starts_with($key, 'geo_ctx:')) {
+                    $ttl = max(0, (int) $this->defaultGeoCtxTtl);
+                    if ($ttl > 0) {
+                        $this->redis->expire($key, $ttl);
+                    }
                 }
             }
 
@@ -63,10 +70,29 @@ class RedisStorageManager implements StorageInterface
         }
     }
 
+    public function setWithTtl(string $key, mixed $value, ?int $ttl = null): bool
+    {
+        try {
+            $encodedValue = is_array($value) ? json_encode($value) : $value;
+            if ($ttl !== null && $ttl > 0) {
+                $result = $this->redis->setex($key, $ttl, $encodedValue);
+
+                return $result === 'OK';
+            }
+
+            // Pas de TTL fourni: fallback sur set() existant (garde règles par défaut)
+            return $this->set($key, $value);
+        } catch (\Exception $e) {
+            $this->logger->error('Redis setWithTtl error', ['key' => $key, 'error' => $e->getMessage()]);
+
+            return false;
+        }
+    }
+
     public function delete(string $key): bool
     {
         try {
-            $this->redis->del(self::PREFIX_BAN . $key);
+            $this->redis->del($key);
             $this->redis->srem(self::KEY_BANNED_IPS, $key);
 
             return true;
@@ -80,7 +106,7 @@ class RedisStorageManager implements StorageInterface
     public function exists(string $key): bool
     {
         try {
-            return $this->redis->exists(self::PREFIX_BAN . $key) > 0;
+            return $this->redis->exists($key) > 0;
         } catch (\Exception $e) {
             $this->logger->error('Redis EXISTS error', ['key' => $key, 'error' => $e->getMessage()]);
 

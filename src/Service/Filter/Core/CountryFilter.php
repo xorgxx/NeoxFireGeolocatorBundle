@@ -29,7 +29,7 @@ final class CountryFilter extends AbstractFilter
 
         $code = strtoupper((string) ($ctx?->countryCode ?? ''));
         if ($code === '') {
-            return $defaultAllow ? null : new AuthorizationDTO(false, 'Denied by country:default', 'country:default');
+            return $defaultAllow ? null : new AuthorizationDTO(false, 'country:default', 'country:default');
         }
 
         $signed = RuleHelper::splitSignedRules($rules);
@@ -38,9 +38,9 @@ final class CountryFilter extends AbstractFilter
         // Deny prioritaire
         $denyHit = RuleHelper::firstMatch($code, $signed['deny'], $eqCI);
         if ($denyHit !== null) {
-            $reason = 'country:' . strtoupper($denyHit);
+            $reason = 'country rule';
 
-            return new AuthorizationDTO(false, 'Denied by ' . $reason, $reason);
+            return new AuthorizationDTO(false, $reason, $reason);
         }
 
         // Allow explicite
@@ -50,6 +50,6 @@ final class CountryFilter extends AbstractFilter
         }
 
         // Défaut
-        return $defaultAllow ? null : new AuthorizationDTO(false, 'Denied by country:default', 'country:default');
+        return $defaultAllow ? null : new AuthorizationDTO(false, 'country:default', 'country:default');
     }
 }

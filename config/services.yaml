@@ -2,6 +2,16 @@
 # Neox Fire Geolocator Bundle — Services configuration
 # This file is organized by categories with clear section titles.
 # ======================================================================
+# Privacy & anonymization parameters
+parameters:
+    geolocator_privacy.hash_secret: '%env(string:GEO_HASH_SECRET)%'
+    geolocator_privacy.hash_algo_version: 'v1'
+    geolocator_privacy.geo_cache_key_strategy: 'ip'
+    geolocator_privacy.context_sanitizer.fields_to_remove: ['ip','city','latitude','longitude','lat','lon','preciseLocation','userAgent','ua']
+    geolocator_privacy.hash_truncate: 32
+    geolocator_privacy.enable_dual_read: true
+    neox_fire_geolocator.rate_limiter.fallback_limit: 15
+    neox_fire_geolocator.rate_limiter.fallback_window_ttl: 60
 
 services:
     # ==============================================================
@@ -11,6 +21,8 @@ services:
         autowire: true
         autoconfigure: true
         public: false
+#        bind:
+#            $geolocatorConfig: '%neox_fire_geolocator.config%'
 
     # ==============================================================
     # Interface-based tags: apply filter tag to all FilterInterface
@@ -25,7 +37,7 @@ services:
     # ==============================================================
     Neox\FireGeolocatorBundle\:
         resource: '../src/*'
-        exclude: '../src/{DependencyInjection,Resources,Model,Entity,Tests}'
+        exclude: '../src/{DependencyInjection,Resources,Model,Entity,Tests,Command}'
 
     # ==============================================================
     # Logging
@@ -73,6 +85,8 @@ services:
             $bridge: '@Neox\FireGeolocatorBundle\Service\Bridge\EventBridgeInterface'
             $limiterGuard: '@Neox\FireGeolocatorBundle\Service\Security\RateLimiterGuard'
             $appFilters: '@Neox\FireGeolocatorBundle\Service\Filter\FilterChain'
+            $privacy: '@Neox\FireGeolocatorBundle\Service\Privacy\AnonymizationService'
+            $ctxHydrator: '@Neox\FireGeolocatorBundle\Service\Context\GeoContextHydratorInterface'
 
     Neox\FireGeolocatorBundle\EventListener\TrustedProxyRequestListener:
         arguments:
@@ -82,6 +96,7 @@ services:
     Neox\FireGeolocatorBundle\EventListener\MaintenanceRequestListener:
         arguments:
             $config: '%neox_fire_geolocator.config%'
+            $twig: '@twig'
         # Relies on #[AsEventListener] with priority 255
 
     Neox\FireGeolocatorBundle\EventListener\GeoConfigCollectListener:
@@ -103,6 +118,9 @@ services:
             $cache: '@neox_fire_geolocator.cache_pool'
             $config: '%neox_fire_geolocator.config%'
             $logger: '@Neox\FireGeolocatorBundle\Service\Log\GeolocatorLoggerInterface'
+            $storage: '@neox_fire_geolocator.storage'
+            $privacy: '@Neox\FireGeolocatorBundle\Service\Privacy\AnonymizationService'
+            $ctxHydrator: '@Neox\FireGeolocatorBundle\Service\Context\GeoContextHydratorInterface'
 
     Neox\FireGeolocatorBundle\Service\BanManager:
         factory: [ '@Neox\FireGeolocatorBundle\Service\Factory\BanManagerFactory', 'create' ]
@@ -124,6 +142,7 @@ services:
         arguments:
             $config: '%neox_fire_geolocator.config%'
             $router: '@router'
+            $privacy: '@Neox\FireGeolocatorBundle\Service\Privacy\AnonymizationService'
 
     Neox\FireGeolocatorBundle\Service\ResponseFormatNegotiator: ~
     Neox\FireGeolocatorBundle\Service\GeoRuleEvaluator: ~
@@ -169,6 +188,33 @@ services:
 
     Neox\FireGeolocatorBundle\Service\Cache\StorageInterface: '@neox_fire_geolocator.storage'
 
+    # Privacy services
+    Neox\FireGeolocatorBundle\Service\Privacy\HmacIpAnonymizer:
+        arguments:
+            $secret: '%geolocator_privacy.hash_secret%'
+            $truncate: '%geolocator_privacy.hash_truncate%'
+
+    # Context hydrator
+    Neox\FireGeolocatorBundle\Service\Context\DefaultGeoContextHydrator: ~
+    Neox\FireGeolocatorBundle\Service\Context\GeoContextHydratorInterface: '@Neox\FireGeolocatorBundle\Service\Context\DefaultGeoContextHydrator'
+
+    Neox\FireGeolocatorBundle\Service\Privacy\IpOrSessionKeyStrategy:
+        arguments:
+            $anon: '@Neox\FireGeolocatorBundle\Service\Privacy\HmacIpAnonymizer'
+            $algoVersion: '%geolocator_privacy.hash_algo_version%'
+            $geoCacheKeyStrategy: '%geolocator_privacy.geo_cache_key_strategy%'
+
+    Neox\FireGeolocatorBundle\Service\Privacy\DefaultContextSanitizer:
+        arguments:
+            $fieldsToRemove: '%geolocator_privacy.context_sanitizer.fields_to_remove%'
+
+    Neox\FireGeolocatorBundle\Service\Privacy\AnonymizationService:
+        arguments:
+            $ipAnonymizer: '@Neox\FireGeolocatorBundle\Service\Privacy\HmacIpAnonymizer'
+            $keyStrategy: '@Neox\FireGeolocatorBundle\Service\Privacy\IpOrSessionKeyStrategy'
+            $sanitizer: '@Neox\FireGeolocatorBundle\Service\Privacy\DefaultContextSanitizer'
+            $algoVersion: '%geolocator_privacy.hash_algo_version%'
+
     Psr\Cache\CacheItemPoolInterface: '@neox_fire_geolocator.cache_pool'
 
     Neox\FireGeolocatorBundle\Service\Cache\CacheKeyResolver:
@@ -179,6 +225,12 @@ services:
     # ==============================================================
     # Console commands
     # ==============================================================
+    Neox\FireGeolocatorBundle\Command\GeolocatorMaintenanceCommand :
+#        autowire      : true
+#        autoconfigure : true
+#        public        : false
+        tags          : [ 'console.command' ]
+
     Neox\FireGeolocatorBundle\Command\TestProviderCommand:
         arguments:
             $geolocatorConfig: '%neox_fire_geolocator.config%'
@@ -186,6 +238,9 @@ services:
     Neox\FireGeolocatorBundle\Command\GeolocatorBanCommand:
         arguments:
             $geolocatorConfig: '%neox_fire_geolocator.config%'
+
+    Neox\FireGeolocatorBundle\Command\HashIpCommand: ~
+    Neox\FireGeolocatorBundle\Command\RateLimitOverrideCommand: ~
 
     # ==============================================================
     # Cache warmer
@@ -205,6 +260,9 @@ services:
             $factory: '@?limiter.neox_fire_geolocator'
             $logger: '@Neox\FireGeolocatorBundle\Service\Log\GeolocatorLoggerInterface'
             $limiterName: 'neox_fire_geolocator'
+            $storage: '@neox_fire_geolocator.storage'
+            $fallbackLimit: '%neox_fire_geolocator.rate_limiter.fallback_limit%'
+            $fallbackWindowTtl: '%neox_fire_geolocator.rate_limiter.fallback_window_ttl%'
 
     # ==============================================================
     # Core filters (priority defines execution order: higher runs first)

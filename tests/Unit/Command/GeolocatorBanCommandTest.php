@@ -32,6 +32,11 @@ class GeolocatorBanCommandTest extends TestCase
                 return true;
             }
 
+            public function setWithTtl(string $key, mixed $value, ?int $ttl = null): bool
+            {
+                return $this->set($key, $value);
+            }
+
             public function delete(string $key): bool
             {
                 return true;
@@ -146,6 +151,11 @@ class GeolocatorBanCommandTest extends TestCase
             public function set(string $key, mixed $value): bool
             {
                 return true;
+            }
+
+            public function setWithTtl(string $key, mixed $value, ?int $ttl = null): bool
+            {
+                return $this->set($key, $value);
             }
 
             public function delete(string $key): bool
@@ -270,6 +280,11 @@ class GeolocatorBanCommandTest extends TestCase
             public function set(string $key, mixed $value): bool
             {
                 return true;
+            }
+
+            public function setWithTtl(string $key, mixed $value, ?int $ttl = null): bool
+            {
+                return $this->set($key, $value);
             }
 
             public function delete(string $key): bool
@@ -398,6 +413,11 @@ class GeolocatorBanCommandTest extends TestCase
             public function set(string $key, mixed $value): bool
             {
                 return true;
+            }
+
+            public function setWithTtl(string $key, mixed $value, ?int $ttl = null): bool
+            {
+                return $this->set($key, $value);
             }
 
             public function delete(string $key): bool

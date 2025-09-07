@@ -18,10 +18,10 @@
     {# Contexte utilisateur #}
     {% if ctx is defined and ctx %}
       <div class="gl-context">
-        {% if ctx.ip %}
+        {% if ip_hash %}
           <div class="gl-kv">
             <span>{{ 'label.ip'|trans }}</span>
-            <b>{{ ctx.ip }}</b>
+            <b>{{ ip_hash }}</b>
           </div>
         {% endif %}
         <div class="gl-kv">

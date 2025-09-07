@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Neox\FireGeolocatorBundle\Tests\Unit\Service\Filter;
 
+use Neox\FireGeolocatorBundle\DTO\AuthorizationDTO;
 use Neox\FireGeolocatorBundle\DTO\GeoApiContextDTO;
 use Neox\FireGeolocatorBundle\DTO\ResolvedGeoApiConfigDTO;
 use Neox\FireGeolocatorBundle\Service\Filter\Core\VpnFilter;
@@ -12,57 +13,50 @@ use Symfony\Component\HttpFoundation\Request;
 
 final class VpnFilterTest extends TestCase
 {
-    private function makeRequestWithConfig(array $filters): Request
+    private function makeCfg(array $over = []): ResolvedGeoApiConfigDTO
     {
-        $req = new Request();
-        $cfg = new ResolvedGeoApiConfigDTO(filters: $filters);
-        $req->attributes->set('geolocator_config', $cfg);
+        $cfg = new ResolvedGeoApiConfigDTO();
+        foreach ($over as $k => $v) {
+            $cfg->$k = $v;
+        }
 
-        return $req;
+        return $cfg;
     }
 
-    public function testDeniesWhenVpnDetectedAndDefaultBlock(): void
+    public function testDenyWhenVpnAndDefaultBlock(): void
     {
-        $req = $this->makeRequestWithConfig([
-            'vpn' => [
-                'enabled'          => true,
-                'default_behavior' => 'block',
+        $filter  = new VpnFilter();
+        $request = Request::create('/');
+        $cfg     = $this->makeCfg([
+            'filters' => [
+                'vpn' => [
+                    'enabled'          => true,
+                    'default_behavior' => 'block',
+                ],
             ],
         ]);
-        $ctx = new GeoApiContextDTO('1.2.3.4', proxy: true);
-
-        $filter = new VpnFilter();
-        $res    = $filter->decide($req, $ctx);
-        $this->assertNotNull($res);
-        $this->assertFalse($res->allowed);
+        $request->attributes->set('geolocator_config', $cfg);
+        $ctx  = new GeoApiContextDTO(ip: '1.2.3.4', proxy: true, hosting: false);
+        $auth = $filter->decide($request, $ctx);
+        self::assertInstanceOf(AuthorizationDTO::class, $auth);
+        self::assertFalse($auth->allowed);
     }
 
-    public function testReturnsNullWhenVpnDetectedAndDefaultAllow(): void
+    public function testNullWhenVpnButDefaultAllow(): void
     {
-        $req = $this->makeRequestWithConfig([
-            'vpn' => [
-                'enabled'          => true,
-                'default_behavior' => 'allow',
+        $filter  = new VpnFilter();
+        $request = Request::create('/');
+        $cfg     = $this->makeCfg([
+            'filters' => [
+                'vpn' => [
+                    'enabled'          => true,
+                    'default_behavior' => 'allow',
+                ],
             ],
         ]);
-        $ctx = new GeoApiContextDTO('1.2.3.4', hosting: true);
-
-        $filter = new VpnFilter();
-        $res    = $filter->decide($req, $ctx);
-        $this->assertNull($res);
-    }
-
-    public function testReturnsNullWhenVpnDisabled(): void
-    {
-        $req = $this->makeRequestWithConfig([
-            'vpn' => [
-                'enabled'          => false,
-                'default_behavior' => 'block',
-            ],
-        ]);
-        $ctx = new GeoApiContextDTO('1.2.3.4', proxy: true);
-
-        $filter = new VpnFilter();
-        $this->assertNull($filter->decide($req, $ctx));
+        $request->attributes->set('geolocator_config', $cfg);
+        $ctx  = new GeoApiContextDTO(ip: '1.2.3.4', proxy: true, hosting: false);
+        $auth = $filter->decide($request, $ctx);
+        self::assertNull($auth);
     }
 }

@@ -15,7 +15,7 @@ class FilterChain
      * @param iterable<FilterInterface> $filters
      */
     public function __construct(
-        #[AutowireIterator('xorgxx.geolocator.filter')]
+        #[AutowireIterator('neox_fire_geolocator.filter')]
         private readonly iterable $filters = []
     ) {
     }

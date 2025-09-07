@@ -38,4 +38,20 @@ neox_fire_geolocator:
 - Bans/attempts: `StorageFactory` crée le backend adéquat (Redis fortement recommandé).
 
 ## 🔁 Stratégies de migration et rétrocompatibilité
-- Non disponible — à compléter.
+- Passage depuis une config ancienne (sans DSN générique):
+  - Conservez vos alias existants et remplacez les URLs par des DSN `<scheme>+<endpoint>` avec placeholders.
+  - Exemple: `https://ip-api.com/json/{ip}` devient `ipapi+https://ip-api.com/json/{ip}`.
+- Introduction du DsnHttpProvider:
+  - Si vous aviez un provider custom, vous pouvez le remplacer par `DsnHttpProvider` + un mapper léger (`map(array $data, string $ip): GeoApiContextDTO`).
+- En-têtes de confiance (trusted headers):
+  - Vérifiez que `framework.trusted_proxies` et `trusted.headers` sont alignés entre Symfony et le bundle (`neox_fire_geolocator.trusted.headers`).
+- Simulate et négociation de format:
+  - Le paramètre `?geo_simulate=1` est privilégié pour des tests sans blocage; pour des intégrations API, annoncez `Accept: application/problem+json`.
+- Stockage et cache:
+  - Activez Redis via `cache.redis_dsn` et `storage.dsn` pour de meilleures perfs; renommez d’anciens ids de pools si nécessaire vers `neox_fire_geolocator.cache_pool`.
+- Filtres et priorités:
+  - Les priorités par défaut: ip(400) > vpn(300) > navigator(200) > country(150) > crawler(100). Adaptez vos surcharges de services si vous changiez l’ordre auparavant.
+- Rate limiting:
+  - Si vous utilisiez un limitateur personnalisé, migrez vers un `limiter.neox_fire_geolocator` déclaré côté app pour activer `RateLimiterGuard` automatiquement.
+- Redirects ban/deny:
+  - Si vous utilisiez des redirections côté contrôleur, préférez la configuration `redirect_on_ban` désormais gérée par `ResponseFactory`.

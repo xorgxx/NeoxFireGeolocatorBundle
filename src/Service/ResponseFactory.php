@@ -7,6 +7,7 @@ namespace Neox\FireGeolocatorBundle\Service;
 use Neox\FireGeolocatorBundle\DTO\AuthorizationDTO;
 use Neox\FireGeolocatorBundle\DTO\GeoApiContextDTO;
 use Neox\FireGeolocatorBundle\Service\Cache\StorageInterface;
+use Neox\FireGeolocatorBundle\Service\Privacy\AnonymizationService;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -25,6 +26,7 @@ class ResponseFactory
         private array $config = [],
         private ?RouterInterface $router = null,
         private ?TranslatorInterface $translator = null,
+        private ?AnonymizationService $privacy = null,
     ) {
     }
 
@@ -48,7 +50,7 @@ class ResponseFactory
                     'detail'         => $auth->reason,
                     'instance'       => $req->getPathInfo(),
                     'blockingFilter' => $auth->blockingFilter,
-                    'context'        => $ctx ? ['ip' => $ctx->ip, 'country' => $ctx->country, 'countryCode' => $ctx->countryCode] : null,
+                    'context'        => $ctx ? ['ip_hash' => ($this->privacy?->anonymizeIp($ctx->ip ?? '') ?? null), 'country' => $ctx->country, 'countryCode' => $ctx->countryCode] : null,
                 ];
                 $resp = new JsonResponse($payload, 403, ['Vary' => 'Accept, X-Requested-With', 'Content-Type' => 'application/problem+json']);
 
@@ -58,7 +60,7 @@ class ResponseFactory
                 $resp = new JsonResponse([
                     'allowed' => false,
                     'reason'  => $auth->reason,
-                    'context' => $ctx ? ['ip' => $ctx->ip, 'country' => $ctx->country, 'countryCode' => $ctx->countryCode] : null,
+                    'context' => $ctx ? ['ip_hash' => ($this->privacy?->anonymizeIp($ctx->ip ?? '') ?? null), 'country' => $ctx->country, 'countryCode' => $ctx->countryCode] : null,
                 ], 403, ['Vary' => 'Accept, X-Requested-With']);
 
                 return $this->annotateSimulate($resp);
@@ -66,13 +68,31 @@ class ResponseFactory
         }
 
         // Compute attempts and remaining attempts for display
-        $ip           = $ctx?->ip ?: ($req?->getClientIp() ?: null);
-        $bucket       = $ip ? ('ip-' . $ip) : null;
+        $ip  = $ctx?->ip ?: ($req?->getClientIp() ?: null);
+        $sid = null;
+        try {
+            if ($req && method_exists($req, 'hasSession') && $req->hasSession()) {
+                $session = $req->getSession();
+                if (method_exists($session, 'isStarted') && $session->isStarted()) {
+                    $sid = $session->getId() ?: null;
+                } else {
+                    $rawName = method_exists($session, 'getName') ? $session->getName() : (function_exists('session_name') ? session_name() : null);
+                    $name    = is_string($rawName) && $rawName !== '' ? $rawName : 'PHPSESSID';
+                    $cookie  = $req->cookies->get($name);
+                    $sid     = is_string($cookie) && $cookie !== '' ? $cookie : null;
+                }
+            }
+        } catch (\Throwable) {
+            $sid = null;
+        }
+        $bucket       = ($ip && $this->privacy) ? $this->privacy->buildBanKey($ip, $sid) : null;
         $attempts     = 0;
         $attemptsLeft = null;
+        $attemptsTtl  = null;
         try {
             if ($bucket && $this->storage) {
-                $attempts = $this->storage->getAttempts($bucket);
+                $attempts    = $this->storage->getAttempts($bucket);
+                $attemptsTtl = $this->storage->getAttemptsTtl($bucket);
             }
         } catch (\Throwable) {
             // ignore storage failures
@@ -80,12 +100,19 @@ class ResponseFactory
         $maxAttempts  = (int) ($this->config['bans']['max_attempts'] ?? 10);
         $attemptsLeft = max(0, $maxAttempts - (int) $attempts);
 
-        $html = $this->twig->render('@Geolocator/deny.html.twig', [
-            'auth'          => $auth,
-            'ctx'           => $ctx,
-            'attempts'      => $attempts,
-            'attempts_left' => $attemptsLeft,
-        ]);
+        $ipHash = $ip ? ($this->privacy?->anonymizeIp($ip) ?? null) : null;
+        try {
+            $html = $this->twig->render('@NeoxFireGeolocator/deny.html.twig', [
+                'auth'          => $auth,
+                'ctx'           => $ctx,
+                'attempts'      => $attempts,
+                'attempts_left' => $attemptsLeft,
+                'attempts_ttl'  => $attemptsTtl,
+                'ip_hash'       => $ipHash,
+            ]);
+        } catch (\Twig\Error\LoaderError) {
+            $html = '<h1>Access denied</h1>';
+        }
 
         return $this->annotateSimulate(new Response($html, 403));
     }
@@ -101,8 +128,24 @@ class ResponseFactory
             return new RedirectResponse($url, 302);
         }
 
-        $ip     = $ctx?->ip ?: ($req?->getClientIp() ?: null);
-        $bucket = $ip ? ('ip-' . $ip) : null;
+        $ip  = $ctx?->ip ?: ($req?->getClientIp() ?: null);
+        $sid = null;
+        try {
+            if ($req && method_exists($req, 'hasSession') && $req->hasSession()) {
+                $session = $req->getSession();
+                if (method_exists($session, 'isStarted') && $session->isStarted()) {
+                    $sid = $session->getId() ?: null;
+                } else {
+                    $rawName = method_exists($session, 'getName') ? $session->getName() : (function_exists('session_name') ? session_name() : null);
+                    $name    = is_string($rawName) && $rawName !== '' ? $rawName : 'PHPSESSID';
+                    $cookie  = $req->cookies->get($name);
+                    $sid     = is_string($cookie) && $cookie !== '' ? $cookie : null;
+                }
+            }
+        } catch (\Throwable) {
+            $sid = null;
+        }
+        $bucket = ($ip && $this->privacy) ? $this->privacy->buildBanKey($ip, $sid) : null;
 
         $attempts    = 0;
         $attemptsTtl = null;
@@ -136,21 +179,27 @@ class ResponseFactory
                 'detail'   => $this->t('problem.banned.detail', 'You have been temporarily blocked due to too many attempts.'),
                 'instance' => $req->getPathInfo(),
                 'retry_at' => $retryAt,
-                'context'  => $ctx ? ['ip' => $ctx->ip, 'country' => $ctx->country, 'countryCode' => $ctx->countryCode] : null,
+                'context'  => $ctx ? ['ip_hash' => ($this->privacy?->anonymizeIp($ctx->ip ?? '') ?? null), 'country' => $ctx->country, 'countryCode' => $ctx->countryCode] : null,
             ];
             $resp = new JsonResponse($payload, 429, ['Vary' => 'Accept, X-Requested-With', 'Content-Type' => 'application/problem+json']);
 
             return $this->annotateSimulate($resp);
         }
 
-        $html = $this->twig->render('@Geolocator/banned.html.twig', [
-            'ctx'          => $ctx,
-            'attempts'     => $attempts,
-            'attempts_ttl' => $attemptsTtl,
-            'ban'          => $ban,
-            'ban_ttl'      => $banTtl,
-            'retry_at'     => $retryAt,
-        ]);
+        $ipHash = $ip ? ($this->privacy?->anonymizeIp($ip) ?? null) : null;
+        try {
+            $html = $this->twig->render('@NeoxFireGeolocator/banned.html.twig', [
+                'ctx'          => $ctx,
+                'attempts'     => $attempts,
+                'attempts_ttl' => $attemptsTtl,
+                'ban'          => $ban,
+                'ban_ttl'      => $banTtl,
+                'ip_hash'      => $ipHash,
+                'retry_at'     => $retryAt,
+            ]);
+        } catch (\Twig\Error\LoaderError) {
+            $html = '<h1>banned</h1>';
+        }
 
         return $this->annotateSimulate(new Response($html, 429));
     }

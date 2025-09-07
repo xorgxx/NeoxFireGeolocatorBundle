@@ -9,6 +9,7 @@ use Neox\FireGeolocatorBundle\Service\Config\GeoAttributeResolver;
 use Neox\FireGeolocatorBundle\Service\Log\GeolocatorLoggerInterface;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Event\RequestEvent;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
 
@@ -17,9 +18,9 @@ final class GeoConfigCollectListenerTest extends TestCase
     private function makeEvent(Request $request): RequestEvent
     {
         $kernel = new class implements HttpKernelInterface {
-            public function handle(Request $request, int $type = self::MAIN_REQUEST, bool $catch = true): \Symfony\Component\HttpFoundation\Response
+            public function handle(Request $request, int $type = self::MAIN_REQUEST, bool $catch = true): Response
             {
-                return new \Symfony\Component\HttpFoundation\Response();
+                return new Response();
             }
         };
 

@@ -49,7 +49,8 @@ class JsonFileStorage implements StorageInterface
 
     public function __construct(
         private readonly string $filePath,
-        private readonly LoggerInterface $logger
+        private readonly LoggerInterface $logger,
+        private int $defaultGeoCtxTtl = 300
     ) {
     }
 
@@ -58,7 +59,30 @@ class JsonFileStorage implements StorageInterface
     {
         $this->loadData();
 
-        return $this->data['bans'][$key] ?? $default;
+        $val = $this->data['bans'][$key] ?? null;
+        if ($val === null) {
+            return $default;
+        }
+        // Expiration pour les contextes geo
+        if (str_starts_with($key, 'geo_ctx:') && is_array($val) && isset($val['expiration'])) {
+            try {
+                $exp = new \DateTime($val['expiration']);
+                if ($exp <= new \DateTime()) {
+                    unset($this->data['bans'][$key]);
+                    $this->saveData();
+
+                    return $default;
+                }
+            } catch (\Exception) {
+                // en cas de valeur invalide, considérer expiré
+                unset($this->data['bans'][$key]);
+                $this->saveData();
+
+                return $default;
+            }
+        }
+
+        return $val;
     }
 
     public function set(string $key, mixed $value): bool
@@ -71,11 +95,41 @@ class JsonFileStorage implements StorageInterface
                     $value['expiration'] = (new \DateTime('+10 minutes'))->format('c');
                 }
             }
+            // Appliquer une expiration pour les contextes geo
+            if (str_starts_with($key, 'geo_ctx:')) {
+                if (is_array($value)) {
+                    $ttl = max(0, (int) $this->defaultGeoCtxTtl);
+                    if ($ttl > 0) {
+                        $value['expiration'] = (new \DateTime('+' . $ttl . ' seconds'))->format('c');
+                    }
+                }
+            }
             $this->data['bans'][$key] = $value;
 
             return $this->saveData();
         } catch (\Exception $e) {
             $this->logger->error('JSON SET error', ['key' => $key, 'error' => $e->getMessage()]);
+
+            return false;
+        }
+    }
+
+    public function setWithTtl(string $key, mixed $value, ?int $ttl = null): bool
+    {
+        try {
+            $this->loadData();
+            if ($ttl !== null && $ttl > 0 && is_array($value)) {
+                $value['expiration'] = (new \DateTime('+' . $ttl . ' seconds'))->format('c');
+            }
+            // Sinon, laisser la logique par défaut de set()
+            if ($ttl === null) {
+                return $this->set($key, $value);
+            }
+            $this->data['bans'][$key] = $value;
+
+            return $this->saveData();
+        } catch (\Exception $e) {
+            $this->logger->error('JSON setWithTtl error', ['key' => $key, 'error' => $e->getMessage()]);
 
             return false;
         }

@@ -26,7 +26,8 @@ class BanManager
             $ttl        = max(60, $banUntilTs - time());
 
             $this->storage->banIp($bucket, [
-                'ip'           => $bucket,
+                'ip_hash'      => $bucket,
+                'algo_version' => 'v1',
                 'reason'       => 'rate_limit_exceeded',
                 'banned_at'    => date('c'),
                 'banned_until' => date('c', $banUntilTs),

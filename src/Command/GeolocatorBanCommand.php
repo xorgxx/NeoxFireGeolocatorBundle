@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Neox\FireGeolocatorBundle\Command;
 
 use Neox\FireGeolocatorBundle\Service\Cache\StorageInterface;
+use Neox\FireGeolocatorBundle\Service\Privacy\AnonymizationService;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -22,6 +23,7 @@ class GeolocatorBanCommand extends Command
     public function __construct(
         private readonly StorageInterface $storage,
         private readonly array $geolocatorConfig,
+        private readonly ?AnonymizationService $privacy = null,
     ) {
         parent::__construct();
     }
@@ -31,8 +33,10 @@ class GeolocatorBanCommand extends Command
         $this
             ->setAliases(['neox:firegeolocator:ban:add'])
             ->addArgument('action', InputArgument::REQUIRED, 'Action à exécuter: add | unban | status | attempts | list | stats | clear-expired')
-            ->addArgument('subject', InputArgument::OPTIONAL, 'IP (ex: 1.2.3.4) ou bucket complet (avec --bucket) selon l\'action')
-            ->addOption('bucket', null, InputOption::VALUE_NONE, 'Traiter subject comme bucket complet (sans préfixe ip-)')
+            ->addArgument('subject', InputArgument::OPTIONAL, 'Identifiant: IP (ex: 1.2.3.4) ou sessionId (avec --session) ou bucket complet (avec --bucket)')
+            ->addOption('bucket', null, InputOption::VALUE_NONE, 'Traiter subject comme bucket complet (clé standardisée déjà calculée)')
+            ->addOption('session', null, InputOption::VALUE_NONE, 'Le subject est un sessionId (prioritaire sur IP)')
+            ->addOption('hash', null, InputOption::VALUE_OPTIONAL, 'Utiliser directement un ip_hash (hex 32) au lieu d\'une IP')
             ->addOption('reason', null, InputOption::VALUE_REQUIRED, 'Raison du ban (pour add)', 'manual')
             ->addOption('ttl', null, InputOption::VALUE_REQUIRED, 'TTL en secondes (pour add/attempts)')
             ->addOption('duration', null, InputOption::VALUE_REQUIRED, 'Durée humaine (pour add), ex: "1 hour", "15 minutes"')
@@ -42,9 +46,10 @@ class GeolocatorBanCommand extends Command
 
         $examples = "Exemples d'utilisation:" . PHP_EOL .
             '  php bin/console neox:firegeolocator:ban add 82.67.99.78 --reason abuse --duration "1 hour"' . PHP_EOL .
-            '  php bin/console neox:firegeolocator:ban add ip-FOO --bucket --ttl 600' . PHP_EOL .
+            '  php bin/console neox:firegeolocator:ban add sid-123 --session --ttl 600' . PHP_EOL .
+            '  php bin/console neox:firegeolocator:ban add --bucket ban:v1:0123abcd... --ttl 600' . PHP_EOL .
             '  php bin/console neox:firegeolocator:ban status 1.2.3.4' . PHP_EOL .
-            '  php bin/console neox:firegeolocator:ban unban 82.67.99.78' . PHP_EOL .
+            '  php bin/console neox:firegeolocator:ban unban --bucket ban:v1:fedcba...' . PHP_EOL .
             '  php bin/console neox:firegeolocator:ban attempts 1.2.3.4 --incr 3' . PHP_EOL .
             '  php bin/console neox:firegeolocator:ban attempts 1.2.3.4 --reset' . PHP_EOL .
             '  php bin/console neox:firegeolocator:ban list' . PHP_EOL .
@@ -67,12 +72,27 @@ class GeolocatorBanCommand extends Command
         $action = strtolower($actionArg);
 
         $subjectArg = $input->getArgument('subject');
-        $subject    = is_string($subjectArg) ? $subjectArg : '';
+        $subject    = is_string($subjectArg) ? trim($subjectArg) : '';
         $asBucket   = (bool) $input->getOption('bucket');
+        $isSession  = (bool) $input->getOption('session');
+        $hashOpt    = $input->getOption('hash');
+        $hash       = is_string($hashOpt) && $hashOpt !== '' ? $hashOpt : null;
 
         $bucket = null;
         if ($subject !== '') {
-            $bucket = $asBucket ? $subject : ('ip-' . $subject);
+            if ($asBucket) {
+                $bucket = $subject; // already standardized key
+            } else {
+                if ($isSession) {
+                    $bucket = $this->privacy ? $this->privacy->buildBanKey(null, $subject) : ('sid-' . $subject);
+                } elseif ($hash) {
+                    // Build standardized ban key from provided hash by forging a fake IP using the hash as identity
+                    $bucket = $this->privacy ? ('ban:' . $this->privacy->getAlgoVersion() . ':' . $hash) : ('hash-' . $hash);
+                } else {
+                    // subject is raw IP: build anonymized ban key or plain if privacy not available
+                    $bucket = $this->privacy ? $this->privacy->buildBanKey($subject, null) : ('ip-' . $subject);
+                }
+            }
         }
 
         $reasonOpt = $input->getOption('reason');
@@ -103,9 +123,10 @@ class GeolocatorBanCommand extends Command
         $ttl = $this->computeTtl($ttlOpt, $duration);
 
         $ok = $this->storage->banIp($bucket, [
-            'ip'        => $bucket,
-            'reason'    => $reason,
-            'banned_at' => date('c'),
+            'ip_hash'      => preg_replace('/^ban:[^:]+:/', '', $bucket),
+            'algo_version' => ($this->privacy?->getAlgoVersion() ?? 'v1'),
+            'reason'       => $reason,
+            'banned_at'    => date('c'),
         ], $ttl);
         if ($ok) {
             $ttlInfo = $ttl ? (' (ttl: ' . $ttl . 's)') : '';
@@ -153,7 +174,8 @@ class GeolocatorBanCommand extends Command
         $io->writeln(' - Banni: ' . ($isBanned ? 'oui' : 'non'));
         if ($isBanned) {
             $io->writeln(' - Ban TTL: ' . ($banTtl !== null ? ($banTtl . 's') : 'n/a'));
-            $io->writeln(' - Ban info: ' . json_encode($banInfo, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+            $san = $this->sanitizeBanInfo($bucket, $banInfo);
+            $io->writeln(' - Ban info: ' . json_encode($san, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
         }
         $io->writeln(' - Attempts: ' . $attempts . ($attemptsTtl !== null ? (' (ttl: ' . $attemptsTtl . 's)') : ''));
 
@@ -205,7 +227,8 @@ class GeolocatorBanCommand extends Command
         $io->writeln('<info>Bans actifs:</info>');
         foreach ($rows as $key => $info) {
             $ttl = $this->storage->getBanTtl((string) $key);
-            $io->writeln(sprintf(' - %s%s => %s', (string) $key, $ttl !== null ? (' (ttl: ' . $ttl . 's)') : '', json_encode($info, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)));
+            $san = $this->sanitizeBanInfo((string) $key, is_array($info) ? $info : []);
+            $io->writeln(sprintf(' - %s%s => %s', (string) $key, $ttl !== null ? (' (ttl: ' . $ttl . 's)') : '', json_encode($san, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)));
         }
 
         return Command::SUCCESS;
@@ -261,5 +284,23 @@ class GeolocatorBanCommand extends Command
         $io->error('Action inconnue: ' . $action . '. Utilisez: add | unban | status | attempts | list | stats | clear-expired');
 
         return Command::INVALID;
+    }
+
+    private function sanitizeBanInfo(string $bucket, ?array $info): array
+    {
+        $info = is_array($info) ? $info : [];
+        if (isset($info['ip'])) {
+            unset($info['ip']);
+        }
+        if (!isset($info['ip_hash'])) {
+            if (preg_match('/^ban:[^:]+:(?<hash>[0-9a-f]{8,64})$/', $bucket, $m)) {
+                $info['ip_hash'] = $m['hash'];
+            }
+        }
+        if (!isset($info['algo_version'])) {
+            $info['algo_version'] = ($this->privacy?->getAlgoVersion() ?? 'v1');
+        }
+
+        return $info;
     }
 }

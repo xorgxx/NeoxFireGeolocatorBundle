@@ -1,7 +1,7 @@
 {% if ctx %}
   <div style="position:fixed; bottom:10px; right:10px; background:#111827; color:#fff; padding:8px 12px; border-radius:8px; font: 14px system-ui; opacity:0.9; z-index: 2147483647;">
     <span>🌐</span>
-    <span style="margin-left:6px">{{ ctx.ip }}</span>
+    {% if ip_hash %}<span style="margin-left:6px">{{ ip_hash }}</span>{% endif %}
     {% if ctx.countryCode %}
       <span style="margin-left:6px">{{ country_flag(ctx.countryCode) }} [{{ ctx.countryCode }}]</span>
     {% endif %}

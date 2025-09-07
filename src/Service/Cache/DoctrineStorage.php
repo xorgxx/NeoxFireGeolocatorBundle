@@ -61,6 +61,31 @@ class DoctrineStorage implements StorageInterface
         }
     }
 
+    public function setWithTtl(string $key, mixed $value, ?int $ttl = null): bool
+    {
+        try {
+            if ($ttl !== null && $ttl > 0) {
+                $reason    = null;
+                $expiresAt = (new \DateTimeImmutable('now'))->modify('+' . $ttl . ' seconds');
+                if (is_array($value)) {
+                    $reason = $value['reason'] ?? null;
+                } elseif (is_string($value)) {
+                    $reason = $value;
+                }
+                $this->banRepository->ban($key, $expiresAt, $reason);
+
+                return true;
+            }
+
+            // Pas de TTL fourni: fallback
+            return $this->set($key, $value);
+        } catch (\Throwable $e) {
+            $this->logger->error('Doctrine setWithTtl error', ['key' => $key, 'error' => $e->getMessage()]);
+
+            return false;
+        }
+    }
+
     public function delete(string $key): bool
     {
         try {

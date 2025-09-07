@@ -216,7 +216,7 @@ final class RuleHelper
         // 2) Blacklist
         $denyHit = self::firstMatch($ip, $signed['deny'], [self::class, 'ipMatches']);
         if ($denyHit !== null) {
-            return new AuthorizationDTO(false, 'Denied by ip:' . $denyHit, 'ip:' . $denyHit);
+            return new AuthorizationDTO(false, 'ip rule', 'ip rule');
         }
 
         // 3) Défaut
@@ -225,6 +225,6 @@ final class RuleHelper
             return null;
         }
 
-        return new AuthorizationDTO(false, 'Denied by ip:default', 'ip:default');
+        return new AuthorizationDTO(false, 'ip:default', 'ip:default');
     }
 }

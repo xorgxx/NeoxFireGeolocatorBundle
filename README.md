@@ -11,10 +11,7 @@
   - la **géolocalisation**  
   - l’**adresse IP**  
   - l’**agent utilisateur** (navigateur/crawler)  
-  - la **détection VPN/Proxy**
-  - Règle applicable à une ou plusieurs routes 
-  - Création de vos propres règles (ex. : une route accessible uniquement à certaines heures, …)
-
+  - la **détection VPN/Proxy**  
 
 - Il s’intègre au cycle de vie des requêtes HTTP, applique une **chaîne de filtres configurable**, gère **exclusions et bans temporaires**, et renvoie des réponses adaptées (**HTML, JSON, problem+json**) avec un mode **simulation**.
 
@@ -27,8 +24,10 @@
 
 1. **Composer (dans votre application Symfony)**  
    ```bash
-   composer require xorgxx/neox-firegeolocator-bundle
+   composer require neox/fire-geolocator-bundle
    ```
+   *(⚠️ nom de package réel : à compléter)*
+
 2. **Activation du bundle**  
    Via Symfony Flex usuel. Sinon, ajouter manuellement dans `config/bundles.php` :  
    ```php
@@ -163,12 +162,7 @@ php bin/console neox:firegeolocator:maintenance status
   `https://yourapp.test/secure?geo_simulate=1`
 
 ---
-### ✅ TODO 
- - Introdure le - RGPD !!
- - Mode asynchrone -> RabbitMq
- - wss -> mercure
 
-___
 ### ✅ Bonnes pratiques
 - Configurez **trusted proxies/headers** correctement pour récupérer l’IP client.
 - Ajoutez des **timeouts** via `HttpClient` global.
@@ -193,10 +187,7 @@ ___
   - geolocation  
   - IP address  
   - user agent (navigator/crawler)  
-  - VPN/Proxy detection 
-  - Rule applicable to one or multiple routes
-  - Creation of your own custom rules (e.g., a route accessible only at specific times, …)
-
+  - VPN/Proxy detection  
 
 - It plugs into the HTTP request cycle, applies a **configurable filter chain**, manages **exclusions and bans**, and returns responses (**HTML / JSON / problem+json**) with a **simulation mode**.
 
@@ -251,13 +242,6 @@ See the **French YAML block above** – keys are identical.
 - HTTP: add `?geo_simulate=1`
 
 ---
-### ✅ TODO
-- Introdure le - RGPD !!
-- Mode asynchrone -> RabbitMq
-- wss -> mercure
-
-___
-
 
 ### ✅ Best practices
 - Configure **trusted proxies/headers** and **Redis caching** properly.  

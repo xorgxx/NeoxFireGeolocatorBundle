@@ -316,4 +316,166 @@ final class GeolocatorRequestListenerTest extends TestCase
 
         $this->assertTrue(true);
     }
+
+    public function testSimulateOverrideFromQueryParamFalse(): void
+    {
+        $listener = $this->makeListener();
+
+        $request = Request::create('/demo?geo_simulate=0');
+        $request->attributes->set('_controller', 'App\\Controller\\DemoController::index');
+        $request->attributes->set('_route', 'app_demo');
+        // Config globale à true, requête doit forcer false
+        $cfg = $this->makeCfg(['simulate' => true, 'enabled' => true, 'trusted' => ['routes' => []]]);
+        $request->attributes->set('geolocator_config', $cfg);
+
+        $event = $this->makeEvent($request);
+        $listener->onKernelRequest($event);
+
+        self::assertFalse($request->attributes->get('geolocator_simulate'));
+    }
+
+    public function testRateLimitDoesNotDenyWhenSimulated(): void
+    {
+        // Limiteur qui refuse toujours
+        $fakeLimiter = new class {
+            public function consume(int $tokens)
+            {
+                return new class {
+                    public function isAccepted(): bool
+                    {
+                        return false;
+                    }
+                };
+            }
+        };
+        $limiterGuard = new RateLimiterGuard($fakeLimiter);
+
+        $responseFactory = $this->createMock(ResponseFactory::class);
+        // En mode simulate, denied() ne doit PAS être appelé
+        $responseFactory->expects($this->never())->method('denied');
+
+        $listener = $this->makeListener([], null, $responseFactory, null, null, null, null, $limiterGuard);
+
+        $request = Request::create('/path?geo_simulate=1');
+        $request->attributes->set('_controller', 'App\\Controller\\DemoController::index');
+        $request->attributes->set('_route', 'app_demo');
+        $cfg = $this->makeCfg(['simulate' => false, 'enabled' => true, 'trusted' => ['routes' => []]]);
+        $request->attributes->set('geolocator_config', $cfg);
+
+        $event = $this->makeEvent($request);
+        $listener->onKernelRequest($event);
+
+        self::assertNull($event->getResponse(), 'No response should be set in simulate mode on rate-limit');
+    }
+
+    public function testBannedDoesNotBlockWhenSimulated(): void
+    {
+        $ban = $this->createMock(BanManager::class);
+        $ban->method('isBanned')->willReturn(true);
+
+        $responseFactory = $this->createMock(ResponseFactory::class);
+        $responseFactory->expects($this->never())->method('banned');
+
+        $listener = $this->makeListener([], null, $responseFactory, $ban);
+
+        $request = Request::create('/path?geo_simulate=1');
+        $request->attributes->set('_controller', 'App\\Controller\\DemoController::index');
+        $request->attributes->set('_route', 'app_demo');
+        $cfg = $this->makeCfg(['simulate' => false, 'enabled' => true, 'trusted' => ['routes' => []]]);
+        $request->attributes->set('geolocator_config', $cfg);
+
+        $event = $this->makeEvent($request);
+        $listener->onKernelRequest($event);
+
+        self::assertNull($event->getResponse(), 'No response should be set in simulate mode when banned');
+    }
+
+    public function testProviderErrorIgnoredWhenSimulated(): void
+    {
+        $resolver = $this->createMock(GeoContextResolver::class);
+        // provider renvoie null
+        $resolver->method('resolve')->willReturn(null);
+
+        $responseFactory = $this->createMock(ResponseFactory::class);
+        $responseFactory->expects($this->never())->method('denied');
+
+        $listener = $this->makeListener([], $resolver, $responseFactory);
+
+        $request = Request::create('/path?geo_simulate=1');
+        $request->attributes->set('_controller', 'App\\Controller\\DemoController::index');
+        $request->attributes->set('_route', 'app_demo');
+        $cfg = $this->makeCfg([
+            'simulate'     => false, // surchargé par la query
+            'enabled'      => true,
+            'blockOnError' => true,
+            'trusted'      => ['routes' => []],
+        ]);
+        $request->attributes->set('geolocator_config', $cfg);
+
+        $event = $this->makeEvent($request);
+        $listener->onKernelRequest($event);
+
+        self::assertNull($event->getResponse(), 'No response should be set in simulate mode when provider fails');
+    }
+
+    public function testFiltersAllowSetsAuthAttribute(): void
+    {
+        $filters = $this->createMock(FilterChain::class);
+        $filters->method('decide')->willReturn(new AuthorizationDTO(true, null, null));
+
+        $listener = $this->makeListener([], null, null, null, null, null, null, null, $filters);
+
+        $request = Request::create('/path');
+        $request->attributes->set('_controller', 'App\\Controller\\DemoController::index');
+        $request->attributes->set('_route', 'app_demo');
+        $cfg = $this->makeCfg(['simulate' => false, 'enabled' => true, 'trusted' => ['routes' => []]]);
+        $request->attributes->set('geolocator_config', $cfg);
+
+        $event = $this->makeEvent($request);
+        $listener->onKernelRequest($event);
+
+        $auth = $request->attributes->get('geolocator_auth');
+        self::assertInstanceOf(AuthorizationDTO::class, $auth);
+        self::assertTrue($auth->allowed);
+        self::assertNull($event->getResponse(), 'No response should be set when allowed');
+    }
+
+    public function testRoutePatternsIgnoreNonStringEntries(): void
+    {
+        $resolver = $this->createMock(GeoContextResolver::class);
+        // Pas exempt -> resolve doit être appelé
+        $resolver->expects($this->once())->method('resolve')->willReturn(null);
+        $listener = $this->makeListener([], $resolver);
+
+        $request = Request::create('/user');
+        $request->attributes->set('_controller', 'App\\Controller\\DemoController::index');
+        $request->attributes->set('_route', 'user_dashboard');
+        // Patterns mixtes: valeurs invalides ignorées
+        $cfg = $this->makeCfg(['enabled' => true, 'trusted' => ['routes' => ['', null, [], 123, 'admin_*']]]);
+        $request->attributes->set('geolocator_config', $cfg);
+
+        $event = $this->makeEvent($request);
+        $listener->onKernelRequest($event);
+
+        self::assertTrue(true);
+    }
+
+    public function testRouteWildcardMatchIsCaseInsensitive(): void
+    {
+        $resolver = $this->createMock(GeoContextResolver::class);
+        $resolver->expects($this->never())->method('resolve');
+        $listener = $this->makeListener([], $resolver);
+
+        $request = Request::create('/admin');
+        $request->attributes->set('_controller', 'App\\Controller\\DemoController::index');
+        // Nom de route en casse différente
+        $request->attributes->set('_route', 'Admin_Dashboard');
+        $cfg = $this->makeCfg(['enabled' => true, 'trusted' => ['routes' => ['admin_*']]]);
+        $request->attributes->set('geolocator_config', $cfg);
+
+        $event = $this->makeEvent($request);
+        $listener->onKernelRequest($event);
+
+        self::assertTrue(true);
+    }
 }

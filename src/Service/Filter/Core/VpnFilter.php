@@ -30,9 +30,9 @@ final class VpnFilter extends AbstractFilter
 
         $defaultBehavior = strtolower((string) ($vpnCfg['default_behavior'] ?? 'allow'));
         if ($defaultBehavior !== 'allow') {
-            $reason = 'vpn:detected';
+            $reason = 'vpn detected';
 
-            return new AuthorizationDTO(false, 'Denied by ' . $reason, $reason);
+            return new AuthorizationDTO(false, $reason, $reason);
         }
 
         return null;

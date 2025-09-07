@@ -28,7 +28,7 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "Neox\\FireGeolocatorBundle\\tests\\": "tests/"
+            "Neox\\FireGeolocatorBundle\\Tests\\": "tests/"
         }
     },
     "extra": {

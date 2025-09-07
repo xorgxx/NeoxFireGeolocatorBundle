@@ -312,8 +312,21 @@ final class Configuration implements ConfigurationInterface
                     ->addDefaultsIfNotSet()
                     ->beforeNormalization()
                         ->always(function ($m) {
-                            if (is_array($m) && isset($m['retry_after']) && is_int($m['retry_after']) && $m['retry_after'] < 0) {
-                                throw new \InvalidArgumentException('maintenance.retry_after must be greater than or equal to 0');
+                            if (!is_array($m)) {
+                                return $m;
+                            }
+
+                            if (isset($m['retry_after'])) {
+                                $ra = $m['retry_after'];
+                                if (is_string($ra)) {
+                                    $raTrim = trim($ra);
+                                    if ($raTrim !== '' && ctype_digit($raTrim)) {
+                                        $m['retry_after'] = (int) $raTrim;
+                                    }
+                                }
+                                if (is_int($m['retry_after']) && $m['retry_after'] < 0) {
+                                    throw new \InvalidArgumentException('maintenance.retry_after must be greater than or equal to 0');
+                                }
                             }
 
                             return $m;
@@ -322,14 +335,58 @@ final class Configuration implements ConfigurationInterface
                     ->children()
                         ->booleanNode('enabled')->defaultFalse()->end()
                         ->arrayNode('allowed_roles')
+                            ->beforeNormalization()
+                                ->always(function ($v) {
+                                    if (!is_array($v)) {
+                                        return [];
+                                    }
+                                    foreach ($v as $item) {
+                                        if (!is_string($item)) {
+                                            throw new \InvalidArgumentException('maintenance.allowed_roles must contain only strings');
+                                        }
+                                    }
+
+                                    return array_values(array_unique($v));
+                                })
+                            ->end()
+                            ->performNoDeepMerging()
                             ->scalarPrototype()->end()
                             ->defaultValue(['ROLE_ADMIN'])
                         ->end()
                         ->arrayNode('paths_whitelist')
+                            ->beforeNormalization()
+                                ->always(function ($v) {
+                                    if (!is_array($v)) {
+                                        return ['/login', '/_profiler', '/_wdt', '/healthz', '/assets'];
+                                    }
+                                    foreach ($v as $item) {
+                                        if (!is_string($item)) {
+                                            throw new \InvalidArgumentException('maintenance.paths_whitelist must contain only strings');
+                                        }
+                                    }
+
+                                    return array_values(array_unique($v));
+                                })
+                            ->end()
+                            ->performNoDeepMerging()
                             ->scalarPrototype()->end()
                             ->defaultValue(['/login', '/_profiler', '/_wdt', '/healthz', '/assets'])
                         ->end()
                         ->arrayNode('ips_whitelist')
+                            ->beforeNormalization()
+                                ->always(function ($v) {
+                                    if (!is_array($v)) {
+                                        return [];
+                                    }
+                                    foreach ($v as $item) {
+                                        if (!is_string($item)) {
+                                            throw new \InvalidArgumentException('maintenance.ips_whitelist must contain only strings');
+                                        }
+                                    }
+
+                                    return $v;
+                                })
+                            ->end()
                             ->scalarPrototype()->end()
                             ->defaultValue([])
                         ->end()

@@ -13,6 +13,6 @@ final class BannedController extends AbstractController
     #[Route(path: '/geolocator/banned', name: 'geolocator_banned', methods: ['GET'])]
     public function index(): Response
     {
-        return $this->render('@Geolocator/banned.html.twig');
+        return $this->render('@NeoxFireGeolocator/banned.html.twig');
     }
 }

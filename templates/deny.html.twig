@@ -15,7 +15,12 @@
         <div class="gl-icon">⛔</div>
         <h1 class="gl-title">{{ 'page.deny.title'|trans }}</h1>
         <p class="gl-lead">{{ 'page.deny.lead'|trans }}</p>
-
+        {% if ip_hash %}
+            <div class="gl-kv">
+                <span>{{ 'label.ip'|trans }}</span>
+                <b>{{ ip_hash }}</b>
+            </div>
+        {% endif %}
         <div class="gl-context">
             <div class="gl-kv">
                 <span>{{ 'label.reason'|trans }}</span>
@@ -23,12 +28,7 @@
             </div>
 
             {% if ctx is defined and ctx %}
-                {% if ctx.ip %}
-                    <div class="gl-kv">
-                        <span>{{ 'label.ip'|trans }}</span>
-                        <b>{{ ctx.ip }}</b>
-                    </div>
-                {% endif %}
+
                 <div class="gl-kv">
                     <span>{{ 'label.country'|trans }}</span>
                     <b>
@@ -45,6 +45,13 @@
                 <div class="gl-kv">
                     <span>{{ 'page.deny.attempts_left'|trans }}</span>
                     <b>{{ attempts_left }}</b>
+                </div>
+            {% endif %}
+
+            {% if attempts_ttl is defined and attempts_ttl is not null %}
+                <div class="gl-kv">
+                    <span>{{ 'label.attempts_ttl'|trans }}</span>
+                    <b>{{ attempts_ttl|date('H:i:s') }}</b>
                 </div>
             {% endif %}
         </div>

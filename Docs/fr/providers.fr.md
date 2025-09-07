@@ -4,6 +4,7 @@
 - findip
 - ipapi
 - ipinfo
+- Provider HTTP générique par DSN (DsnHttpProvider)
 
 ## 🧭 Format DSN
 - `<scheme>+<endpoint>`
@@ -14,15 +15,23 @@
 
 ### ✅ Contraintes
 - L’endpoint doit être http(s) et contenir le placeholder `{ip}`.
-- Schemes supportés: `findip`, `ipapi`, `ipinfo`.
+- Schemes supportés: `findip`, `ipapi`, `ipinfo` (vous pouvez utiliser des préfixes personnalisés avec un mapper correspondant — voir plus bas).
 - `variables.token` requis pour `findip` et `ipinfo` (validation côté configuration).
 
-## ⚙️ Variables
+## ⚙️ Variables et interpolation
 - `list.<alias>.variables`: `map<string,string>`
   - `token`: `string` (requis pour findip/ipinfo)
+- Interpolation: les placeholders `{ip}`, `{token}`, etc. sont remplacés à l’exécution avant l’appel HTTP.
+
+## 🔌 Provider HTTP générique (DsnHttpProvider)
+- Le bundle inclut un provider générique capable d’appeler n’importe quel endpoint HTTP défini par un DSN et de déléguer la transformation à un mapper.
+- Signature (constructeur): `(HttpClientInterface $httpClient, string $dsn, array $variables = [], ?object $mapper = null)`
+- Contrat de mapping: si `$mapper` possède une méthode `map(array $data, string $ip): GeoApiContextDTO`, son retour est utilisé comme contexte de géolocalisation.
+- Gestion d’erreurs: les codes HTTP sont normalisés (par ex. `HTTP_CLIENT_4xx`, `HTTP_SERVER_5xx`) et les erreurs réseau/timeouts exposent des raisons (`timeout`, `transport: ...`).
+- Note DSN prefix: un préfixe `<scheme>+` (ex: `ipapi+`) est accepté et retiré avant la requête réelle; il peut être utilisé pour sélectionner un mapper dans votre factory.
 
 ## 🔄 Mappers
-- Résolution interne via `GeoContextResolver`:
+- Résolution interne via `GeoContextResolver` ou câblage de services:
   - `ipapi`  -> `IpApiMapper`
   - `findip` -> `MaxmindDataMapper` (compatibilité actuelle)
   - `ipinfo` -> `IpInfoMapper`
@@ -49,6 +58,20 @@ neox_fire_geolocator:
         dsn: "findip+https://api.findip.example.com/json/{ip}"
         variables:
           token: "%env(FINDIP_TOKEN)%"
+```
+
+### Provider personnalisé via DSN générique
+- Définissez votre alias et DSN; câblez un mapper pour transformer le payload:
+```yaml
+# services.yaml (exemple)
+App\Geo\MonMapper: ~
+
+Neox\FireGeolocatorBundle\Provider\DsnHttpProvider $monProvider:
+  arguments:
+    $httpClient: '@http_client'
+    $dsn: 'monapi+https://geo.example.com/v1/lookup?ip={ip}&token={token}'
+    $variables: { token: '%env(GEO_TOKEN)%' }
+    $mapper: '@App\\Geo\\MonMapper'
 ```
 
 ## ⚠️ Limitations

@@ -67,9 +67,9 @@ class GeoRuleEvaluator
             if ($cidrAllow) {
                 // If an exact deny also matches, deny takes precedence
                 if ($exactDeny) {
-                    $reason = 'ip:' . $ip;
+                    $reason = 'ip:rule';
 
-                    return new AuthorizationDTO(false, 'Denied by ' . $reason, $reason);
+                    return new AuthorizationDTO(false, $reason, $reason);
                 }
 
                 return new AuthorizationDTO(true, 'ip whitelist', null);
@@ -86,7 +86,7 @@ class GeoRuleEvaluator
                 if ($defaultBehavior !== 'allow') {
                     $reason = 'vpn:detected';
 
-                    return new AuthorizationDTO(false, 'Denied by ' . $reason, $reason);
+                    return new AuthorizationDTO(false, $reason, $reason);
                 }
             }
         }
@@ -145,7 +145,7 @@ class GeoRuleEvaluator
                 }
                 if ($match) {
                     if ($sign === '-') {
-                        $denyReason = $cat . ':' . $value;
+                        $denyReason = $cat . ':rule';
                         $decision   = false;
                         break;
                     }
@@ -155,12 +155,12 @@ class GeoRuleEvaluator
                 }
             }
             if ($denyReason !== null) {
-                return new AuthorizationDTO(false, 'Denied by ' . $denyReason, $denyReason);
+                return new AuthorizationDTO(false, $denyReason, $denyReason);
             }
             if (!$decision) {
                 $denyReason = $cat . ':default';
 
-                return new AuthorizationDTO(false, 'Denied by ' . $denyReason, $denyReason);
+                return new AuthorizationDTO(false, $denyReason, $denyReason);
             }
         }
 

@@ -12,8 +12,11 @@ use Neox\FireGeolocatorBundle\Provider\Mapper\IpApiMapper;
 use Neox\FireGeolocatorBundle\Provider\Mapper\IpInfoMapper;
 use Neox\FireGeolocatorBundle\Provider\Mapper\MaxmindDataMapper;
 use Neox\FireGeolocatorBundle\Service\Cache\CacheKey;
+use Neox\FireGeolocatorBundle\Service\Cache\StorageInterface;
+use Neox\FireGeolocatorBundle\Service\Context\GeoContextHydratorInterface;
 use Neox\FireGeolocatorBundle\Service\Log\GeolocatorLoggerInterface;
 use Neox\FireGeolocatorBundle\Service\Net\IpUtils;
+use Neox\FireGeolocatorBundle\Service\Privacy\AnonymizationService;
 use Psr\Cache\CacheItemPoolInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
@@ -30,6 +33,10 @@ class GeoContextResolver
         private array $providerConfig, // geolocator.providers.list
         private int $contextTtl,
         private GeolocatorLoggerInterface $logger,
+        private StorageInterface $storage,
+        private AnonymizationService $privacy,
+        private GeoContextHydratorInterface $ctxHydrator,
+        private bool $enableDualRead = true,
     ) {
     }
 
@@ -45,65 +52,64 @@ class GeoContextResolver
         $ip             = $this->getIpFromTrustedHeaders($request, $trustedHeaders)
             ?? ($request->getClientIp() ?: '0.0.0.0');
 
-        // Choose cache key by strategy (session or ip)
-        $key = null;
-        if (method_exists($cfg, 'getCacheKeyStrategy') && $cfg->getCacheKeyStrategy() === 'session') {
-            $sid = $this->getSessionId($request);
-            if ($sid) {
-                $key  = $this->normalize(CacheKey::ctxSession($provider, $sid));
-                $item = $this->cache->getItem($key);
-                if ($item->isHit()) {
-                    $ctx = $item->get();
-                    $this->logger->debug('GeoContext cache hit', ['key' => $key, 'type' => is_object($ctx) ? get_class($ctx) : gettype($ctx)]);
-                    // Expose cache status for profiler
-                    $request->attributes->set('geolocator_cache', ['key' => $key, 'status' => 'hit']);
-                    if ($ctx instanceof GeoApiContextDTO) {
-                        return $ctx;
-                    }
-                    // Backward compatibility: hydrate from array if previous cache stored arrays
-                    if (is_array($ctx) && isset($ctx['ip'])) {
-                        $dto = new GeoApiContextDTO(
-                            ip: (string) ($ctx['ip'] ?? ''),
-                            country: $ctx['country']         ?? null,
-                            countryCode: $ctx['countryCode'] ?? null,
-                            region: $ctx['region']           ?? null,
-                            city: $ctx['city']               ?? null,
-                            lat: isset($ctx['lat']) ? (float) $ctx['lat'] : null,
-                            lon: isset($ctx['lon']) ? (float) $ctx['lon'] : null,
-                            isp: $ctx['isp']         ?? null,
-                            asn: $ctx['asn']         ?? null,
-                            proxy: $ctx['proxy']     ?? null,
-                            hosting: $ctx['hosting'] ?? null,
-                            raw: is_array($ctx['raw'] ?? null) ? $ctx['raw'] : $ctx
-                        );
-                        // Re-save as DTO with same remaining TTL if possible
-                        try {
-                            $item->set($dto);
-                            $this->cache->save($item);
-                            $this->logger->info('GeoContext cache hydrated legacy value', ['key' => $key]);
-                        } catch (\Throwable $e) {
-                            $this->logger->warning('GeoContext cache hydration failed', ['key' => $key, 'error' => $e->getMessage()]);
-                        }
-
-                        return $dto;
-                    }
-                } else {
-                    $this->logger->debug('GeoContext cache miss', ['key' => $key]);
-                    // Expose cache status for profiler
-                    $request->attributes->set('geolocator_cache', ['key' => $key, 'status' => 'miss']);
-                }
+        // If IP is private/loopback, attempt to replace by a detected public IP immediately (before key calc)
+        if ($this->isPrivateOrLoopbackIp($ip)) {
+            $public = $this->fetchPublicIp();
+            if (is_string($public) && filter_var($public, FILTER_VALIDATE_IP)) {
+                $ip = $public;
             }
         }
 
-        if (!$key) {
-            $key = $this->normalize(CacheKey::ctx($provider, $ip));
-        }
-        $this->logger->info('GeoContext cache lookup', ['key' => $key, 'provider' => $provider, 'ip' => $ip]);
+        // Build standardized storage key via privacy service (session or ip)
+        $strategy = method_exists($cfg, 'getCacheKeyStrategy') ? $cfg->getCacheKeyStrategy() : 'ip';
+        $sid      = $this->getSessionId($request);
+        $stdKey   = $this->privacy->buildGeoCacheKey($provider, $sid, $ip);
 
-        // Ensure we have a cache item handle for subsequent save, even when not using session strategy
-        if (!isset($item)) {
-            $item = $this->cache->getItem($key);
+        // 1) New storage read (sanitized arrays)
+        $payload = $this->storage->get($stdKey);
+        if (is_array($payload) && isset($payload['ctx'])) {
+            $san = is_array($payload['ctx']) ? $payload['ctx'] : [];
+            $dto = $this->ctxHydrator->hydrateFromSanitized($ip, $san);
+            $request->attributes->set('geolocator_cache', ['key' => $stdKey, 'status' => 'hit']);
+            $this->logger->debug('GeoContext storage hit', ['key' => $stdKey]);
+
+            return $dto;
         }
+
+        // 2) Dual-read legacy PSR-6 for transition (optional)
+        if ($this->enableDualRead) {
+            $legacyKey = null;
+            if ($strategy === 'session' && $sid) {
+                $legacyKey = $this->normalize(CacheKey::ctxSession($provider, $sid));
+            } else {
+                $legacyKey = $this->normalize(CacheKey::ctx($provider, $ip));
+            }
+            $item = $this->cache->getItem($legacyKey);
+            if ($item->isHit()) {
+                $ctx = $item->get();
+                $this->logger->debug('GeoContext legacy cache hit', ['key' => $legacyKey, 'type' => is_object($ctx) ? get_class($ctx) : gettype($ctx)]);
+                $request->attributes->set('geolocator_cache', ['key' => $legacyKey, 'status' => 'hit_legacy']);
+                // Normalize to sanitized array
+                $san = $this->privacy->sanitizeContext(is_array($ctx) ? $ctx : (array) json_decode(json_encode($ctx), true));
+                // Write-through to new storage (best-effort; TTL cannot be read from PSR-6 item, so use contextTtl)
+                try {
+                    $ttl = $cfg->getCacheTtl();
+                    if (!$ttl || $ttl <= 0) {
+                        $ttl = $this->contextTtl;
+                    }
+                    if (method_exists($this->storage, 'setWithTtl')) {
+                        $this->storage->setWithTtl($stdKey, ['ctx' => $san, 'algo_version' => $this->privacy->getAlgoVersion()], $ttl);
+                    } else {
+                        $this->storage->set($stdKey, ['ctx' => $san, 'algo_version' => $this->privacy->getAlgoVersion()]);
+                    }
+                } catch (\Throwable) {
+                }
+
+                return $this->ctxHydrator->hydrateFromSanitized($ip, $san);
+            }
+        }
+
+        $this->logger->info('GeoContext cache lookup', ['key' => $stdKey, 'provider' => $provider]);
 
         // Si IP privée/locale, tenter tout de suite de récupérer l'IP publique (avant le calcul de clé)
         if ($this->isPrivateOrLoopbackIp($ip)) {
@@ -115,15 +121,22 @@ class GeoContextResolver
 
         $result = $this->callProvider($provider, $ip);
         if ($result->ok && $result->context) {
-            $ttl = $cfg->getCacheTtl() ?? $this->contextTtl;
-            $item->set($result->context);
-            $item->expiresAfter($ttl);
-            $this->cache->save($item);
+            $ttl = $cfg->getCacheTtl();
+            if (!$ttl || $ttl <= 0) {
+                $ttl = $this->contextTtl;
+            }
+            $san = $this->privacy->sanitizeContext((array) $result->context);
+            // Persist sanitized context via StorageInterface (no PII)
+            if (method_exists($this->storage, 'setWithTtl')) {
+                $this->storage->setWithTtl($stdKey, ['ctx' => $san, 'algo_version' => $this->privacy->getAlgoVersion()], $ttl);
+            } else {
+                $this->storage->set($stdKey, ['ctx' => $san, 'algo_version' => $this->privacy->getAlgoVersion()]);
+            }
             // Expose cache status for profiler
-            $request->attributes->set('geolocator_cache', ['key' => $key, 'status' => 'save', 'ttl' => $ttl]);
-            $this->logger->info('GeoContext cache saved', ['key' => $key, 'ttl' => $ttl]);
+            $request->attributes->set('geolocator_cache', ['key' => $stdKey, 'status' => 'save', 'ttl' => $ttl]);
+            $this->logger->info('GeoContext storage saved', ['key' => $stdKey, 'ttl' => $ttl]);
 
-            return $result->context;
+            return $this->ctxHydrator->hydrateFromSanitized($ip, $san);
         } else {
             $this->logger->warning('GeoContext provider failed', ['provider' => $provider]);
         }
@@ -133,10 +146,13 @@ class GeoContextResolver
                 if ($alias === $provider) {
                     continue;
                 }
-                $this->logger->debug('GeoContext trying fallback provider', ['alias' => $alias, 'ip' => $ip]);
+                $this->logger->debug('GeoContext trying fallback provider', ['alias' => $alias]);
                 $result = $this->callProvider($alias, $ip);
                 if ($result->ok && $result->context) {
-                    $ttl = $cfg->getCacheTtl() ?? $this->contextTtl;
+                    $ttl = $cfg->getCacheTtl();
+                    if (!$ttl || $ttl <= 0) {
+                        $ttl = $this->contextTtl;
+                    }
                     // choose fallback key by strategy as well
                     $k2 = null;
                     if (method_exists($cfg, 'getCacheKeyStrategy') && $cfg->getCacheKeyStrategy() === 'session') {
@@ -148,15 +164,16 @@ class GeoContextResolver
                     if (!$k2) {
                         $k2 = $this->normalize(CacheKey::ctx($alias, $ip));
                     }
-                    $it2 = $this->cache->getItem($k2);
-                    $it2->set($result->context);
-                    $it2->expiresAfter($ttl);
-                    $this->cache->save($it2);
-                    // Expose cache status for profiler (fallback save)
-                    $request->attributes->set('geolocator_cache', ['key' => $k2, 'status' => 'save', 'ttl' => $ttl]);
-                    $this->logger->info('GeoContext cache saved (fallback)', ['key' => $k2, 'ttl' => $ttl, 'provider' => $alias]);
+                    $san2 = $this->privacy->sanitizeContext((array) $result->context);
+                    if (method_exists($this->storage, 'setWithTtl')) {
+                        $this->storage->setWithTtl($stdKey, ['ctx' => $san2, 'algo_version' => $this->privacy->getAlgoVersion()], $ttl);
+                    } else {
+                        $this->storage->set($stdKey, ['ctx' => $san2, 'algo_version' => $this->privacy->getAlgoVersion()]);
+                    }
+                    $request->attributes->set('geolocator_cache', ['key' => $stdKey, 'status' => 'save_fallback', 'ttl' => $ttl]);
+                    $this->logger->info('GeoContext storage saved (fallback)', ['key' => $stdKey, 'ttl' => $ttl, 'provider' => $alias]);
 
-                    return $result->context;
+                    return $this->ctxHydrator->hydrateFromSanitized($ip, $san2);
                 }
             }
         }
@@ -196,7 +213,7 @@ class GeoContextResolver
         if ($result->ok) {
             // Reset breaker on success
             $this->breaker[$alias] = ['failures' => 0, 'openedUntil' => 0.0, 'halfOpen' => false];
-            $this->logger->info('Provider success', ['provider' => $alias, 'ip' => $ip, 'duration_ms' => $durationMs]);
+            $this->logger->info('Provider success', ['provider' => $alias, 'duration_ms' => $durationMs]);
 
             return $result;
         }

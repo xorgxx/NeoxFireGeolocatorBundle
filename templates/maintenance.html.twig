@@ -23,6 +23,11 @@
                     <span >Commentaire</span >
                     <b >{{ comment }}</b >
                 </div >
+            {% else %}
+                <div class="gl-kv" >
+                    <span >Commentaire</span >
+                    <b >Maintenance planifiée</b >
+                </div >
             {% endif %}
 
 
@@ -47,36 +52,44 @@
                         </time >
                     </b >
                 </div >
-            {% elseif release_at is defined and release_at %}
-                <div class="gl-kv" >
-                    <span >Jusqu’à</span >
-                    <b >
-                        <time class="gl-localtime" datetime="{{ release_at|date('c') }}" data-fallback="{{ release_at|date('Y-m-d H:i:s') }} UTC" >
-                            {{ release_at|date('Y-m-d H:i:s') }} UTC
-                        </time >
-                    </b >
-                </div >
+{#            {% elseif release_at is defined and release_at %}#}
+{#                <div class="gl-kv" >#}
+{#                    <span >Jusqu’à</span >#}
+{#                    <b >#}
+{#                        <time class="gl-localtime" datetime="{{ release_at|date('c') }}" data-fallback="{{ release_at|date('Y-m-d H:i:s') }} UTC" >#}
+{#                            {{ release_at|date('Y-m-d H:i:s') }} UTC#}
+{#                        </time >#}
+{#                    </b >#}
+{#                </div >#}
+{#            {% endif %}#}
+
+{#            {% if ttl is defined and ttl is not null %}#}
+{#                <div class="gl-kv">#}
+{#                    <span>TTL restant (approx.)</span>#}
+{#                    <b>#}
+{#                        <time class="gl-localtime" datetime="{{ ('now'|date_modify('+' ~ ttl ~ ' seconds'))|date('c') }}" data-fallback="{{ ttl }}s">#}
+{#                            {{ ttl }}s#}
+{#                        </time>#}
+{#                    </b>#}
+{#                </div>#}
+{#            {% endif %}#}
+
+{#            {% if retry_after is defined and retry_after %}#}
+{#                <div class="gl-kv">#}
+{#                    <span>Retry-After</span>#}
+{#                    <b>#}
+{#                        {% if until is defined and until %}#}
+{#                            <time id="gl-retry-at" class="gl-localtime" datetime="{{ until|date('c') }}" data-fallback="{{ until|date('Y-m-d H:i:s') }} UTC">{{ until|date('Y-m-d H:i:s') }} UTC</time>#}
+{#                        {% elseif release_at is defined and release_at %}#}
+{#                            <time id="gl-retry-at" class="gl-localtime" datetime="{{ release_at|date('c') }}" data-fallback="{{ release_at|date('Y-m-d H:i:s') }} UTC">{{ release_at|date('Y-m-d H:i:s') }} UTC</time>#}
+{#                        {% else %}#}
+{#                            <time id="gl-retry-at" class="gl-localtime" datetime="{{ ('now'|date_modify('+' ~ retry_after ~ ' seconds'))|date('c') }}" data-fallback="{{ retry_after }}s">#}
+{#                                {{ retry_after }}s#}
+{#                            </time>#}
+{#                        {% endif %}#}
+{#                    </b>#}
+{#                </div>#}
             {% endif %}
-
-            {#            {% if ttl is defined and ttl is not null %} #}
-            {#                <div class="gl-kv"> #}
-            {#                    <span>TTL restant (approx.)</span> #}
-            {#                    <b>{{ ttl|date('H:i:s') }}</b> #}
-            {#                </div> #}
-            {#            {% endif %} #}
-
-            {#            {% if retry_after is defined and retry_after %} #}
-            {#                <div class="gl-kv"> #}
-            {#                    <span>Retry-After</span> #}
-            {#                    <b> #}
-            {#                        <time id="gl-retry-at" class="gl-localtime" #}
-            {#                            datetime="{{ retry_after|date('c') }}" #}
-            {#                            data-fallback="{{ retry_after|date('Y-m-d H:i:s') }}"> #}
-            {#                            {{ retry_after|date('Y-m-d H:i:s') }} #}
-            {#                        </time> #}
-            {#                    </b> #}
-            {#                </div> #}
-            {#            {% endif %} #}
         </div >
 
         <div class="gl-actions" >

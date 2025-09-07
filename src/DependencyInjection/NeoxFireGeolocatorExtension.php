@@ -32,8 +32,9 @@ class NeoxFireGeolocatorExtension extends Extension implements PrependExtensionI
             $paths = [];
             foreach ($twigCandidates as $path) {
                 if (is_dir($path)) {
-                    // clé = chemin, valeur = namespace
-                    $paths[$path] = 'NeoxFireGeolocator';
+                    // Utiliser le format liste pour éviter l'écrasement et déclarer 2 namespaces pour le même chemin
+                    //                    $paths[] = ['value' => $path, 'namespace' => 'Geolocator'];
+                    $paths[] = ['value' => $path, 'namespace' => 'NeoxFireGeolocator'];
                 }
             }
             if ($paths !== []) {
@@ -66,7 +67,7 @@ class NeoxFireGeolocatorExtension extends Extension implements PrependExtensionI
                     'assets' => [
                         'packages' => [
                             'neox_fire_geolocator' => [
-                                'base_path' => '/bundles/neoxfiregeolocator',
+                                'base_path' => '/bundles/FireGeolocatorBundle',
                             ],
                         ],
                     ],

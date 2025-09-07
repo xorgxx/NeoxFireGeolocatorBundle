@@ -53,9 +53,9 @@ final class CrawlerFilter extends AbstractFilter
             }
             $matched = strtolower($pattern) === 'known' ? ($allowKnown && $knownMatcher($ua, $pattern)) : $uaMatcher($ua, $pattern);
             if ($matched) {
-                $reason = 'crawler:' . $pattern;
+                $reason = 'crawler rule';
 
-                return new AuthorizationDTO(false, 'Denied by ' . $reason, $reason);
+                return new AuthorizationDTO(false, $reason, $reason);
             }
         }
 
@@ -71,6 +71,6 @@ final class CrawlerFilter extends AbstractFilter
         }
 
         // 3) Défaut / baseline
-        return $decision ? null : new AuthorizationDTO(false, 'Denied by crawler:default', 'crawler:default');
+        return $decision ? null : new AuthorizationDTO(false, 'crawler:default', 'crawler:default');
     }
 }

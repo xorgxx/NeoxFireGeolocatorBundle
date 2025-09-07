@@ -32,7 +32,7 @@ final class IpFilter extends AbstractFilter
 
         // Whitelist first: explicit allow and short-circuit
         if (RuleHelper::ipWhitelisted($filters, $ip)) {
-            return new AuthorizationDTO(true, 'ip whitelist', 'ip:whitelist');
+            return new AuthorizationDTO(true, 'Allowed by ip', 'ip:allow');
         }
 
         // 2) Évaluation des règles via RuleHelper (remplace les méthodes manquantes)

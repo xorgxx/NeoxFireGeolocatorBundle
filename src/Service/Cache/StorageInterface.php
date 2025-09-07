@@ -9,6 +9,11 @@ interface StorageInterface
 
     public function set(string $key, mixed $value): bool;
 
+    /**
+     * Set a value with optional TTL (in seconds). If TTL is null, implementations should keep their default behavior.
+     */
+    public function setWithTtl(string $key, mixed $value, ?int $ttl = null): bool;
+
     public function delete(string $key): bool;
 
     public function exists(string $key): bool;

@@ -16,10 +16,11 @@ class StorageFactory
     {
         $dsn    = $config['storage']['dsn'];
         $scheme = $this->getSchemeFromDsn($config);
+        $ctxTtl = (int) ($config['cache']['context_ttl'] ?? 300);
 
         return match (strtolower($scheme)) {
-            'file', 'json' => $this->createJsonStorage($dsn, $logger),
-            'redis' => $this->createRedisStorage($dsn, $logger),
+            'file', 'json' => $this->createJsonStorage($dsn, $logger, $ctxTtl),
+            'redis' => $this->createRedisStorage($dsn, $logger, $ctxTtl),
             'doctrine', 'sqlite', 'mysql', 'postgresql', 'pgsql' => $this->createDoctrineStorage($dsn, $connection, $logger),
             default => throw new \InvalidArgumentException("Unsupported storage scheme: {$scheme} in DSN: {$dsn}")
         };
@@ -41,17 +42,16 @@ class StorageFactory
         return $parsed['scheme'];
     }
 
-    private function createJsonStorage(string $dsn, ?LoggerInterface $logger): JsonFileStorage
+    private function createJsonStorage(string $dsn, ?LoggerInterface $logger, int $ctxTtl): JsonFileStorage
     {
         $parsed   = parse_url($dsn);
         $filePath = $parsed['path'] ?? $dsn;
 
-        return new JsonFileStorage($filePath, $logger);
+        return new JsonFileStorage($filePath, $logger, $ctxTtl);
     }
 
-    private function createRedisStorage(string $dsn, ?LoggerInterface $logger): RedisStorageManager
+    private function createRedisStorage(string $dsn, ?LoggerInterface $logger, int $ctxTtl): RedisStorageManager
     {
-        //        $dsn = $config["storage"]["dsn"];
         if (!class_exists(Client::class)) {
             throw new \RuntimeException('Predis\Client class not found. Please install predis/predis package');
         }
@@ -66,7 +66,7 @@ class StorageFactory
             throw new \RuntimeException(sprintf('Unable to connect to Redis using DSN "%s": %s', $dsn, $e->getMessage()), previous: $e);
         }
 
-        return new RedisStorageManager($redis, $logger);
+        return new RedisStorageManager($redis, $logger, $ctxTtl);
     }
 
     private function createDoctrineStorage(string $dsn, ?EntityManagerInterface $em, ?LoggerInterface $logger): DoctrineStorage

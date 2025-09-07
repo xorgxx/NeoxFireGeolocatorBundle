@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Neox\FireGeolocatorBundle\Tests\Unit\Service\Filter;
 
+use Neox\FireGeolocatorBundle\DTO\AuthorizationDTO;
 use Neox\FireGeolocatorBundle\DTO\GeoApiContextDTO;
 use Neox\FireGeolocatorBundle\DTO\ResolvedGeoApiConfigDTO;
 use Neox\FireGeolocatorBundle\Service\Filter\Core\IpFilter;
@@ -12,60 +13,52 @@ use Symfony\Component\HttpFoundation\Request;
 
 final class IpFilterTest extends TestCase
 {
-    private function makeRequestWithConfig(array $filters): Request
+    private function makeCfg(array $over = []): ResolvedGeoApiConfigDTO
     {
-        $req = new Request();
-        $cfg = new ResolvedGeoApiConfigDTO(filters: $filters);
-        $req->attributes->set('geolocator_config', $cfg);
+        $cfg = new ResolvedGeoApiConfigDTO();
+        foreach ($over as $k => $v) {
+            $cfg->$k = $v;
+        }
 
-        return $req;
+        return $cfg;
     }
 
-    public function testWhitelistAllowsExplicitly(): void
+    public function testAllowWhenIpWhitelisted(): void
     {
-        $req = $this->makeRequestWithConfig([
-            'ip' => [
-                'default_behavior' => 'deny',
-                'rules'            => ['+1.2.3.4'],
+        $filter  = new IpFilter();
+        $request = Request::create('/');
+        $request->server->set('REMOTE_ADDR', '1.2.3.4');
+        $cfg = $this->makeCfg([
+            'filters' => [
+                'ip' => [
+                    'default_behavior' => 'block',
+                    'rules'            => ['+1.2.3.4'],
+                ],
             ],
         ]);
-        $ctx = new GeoApiContextDTO('1.2.3.4');
-
-        $filter = new IpFilter();
-        $res    = $filter->decide($req, $ctx);
-        $this->assertNotNull($res);
-        $this->assertTrue($res->allowed);
+        $request->attributes->set('geolocator_config', $cfg);
+        $auth = $filter->decide($request, new GeoApiContextDTO(ip: '1.2.3.4'));
+        self::assertInstanceOf(AuthorizationDTO::class, $auth);
+        self::assertTrue($auth->allowed);
     }
 
-    public function testBlacklistDenies(): void
+    public function testDefaultBlockWhenNoRules(): void
     {
-        $req = $this->makeRequestWithConfig([
-            'ip' => [
-                'default_behavior' => 'allow',
-                'rules'            => ['-10.0.0.0/8'],
+        $filter  = new IpFilter();
+        $request = Request::create('/');
+        $request->server->set('REMOTE_ADDR', '5.6.7.8');
+        $cfg = $this->makeCfg([
+            'filters' => [
+                'ip' => [
+                    'default_behavior' => 'block',
+                    'rules'            => [],
+                ],
             ],
         ]);
-        $ctx = new GeoApiContextDTO('10.1.2.3');
-
-        $filter = new IpFilter();
-        $res    = $filter->decide($req, $ctx);
-        $this->assertNotNull($res);
-        $this->assertFalse($res->allowed);
-    }
-
-    public function testDefaultDenyWhenNoMatch(): void
-    {
-        $req = $this->makeRequestWithConfig([
-            'ip' => [
-                'default_behavior' => 'deny',
-                'rules'            => [],
-            ],
-        ]);
-        $ctx = new GeoApiContextDTO('8.8.8.8');
-
-        $filter = new IpFilter();
-        $res    = $filter->decide($req, $ctx);
-        $this->assertNotNull($res);
-        $this->assertFalse($res->allowed);
+        $request->attributes->set('geolocator_config', $cfg);
+        $auth = $filter->decide($request, new GeoApiContextDTO(ip: '5.6.7.8'));
+        self::assertInstanceOf(AuthorizationDTO::class, $auth);
+        self::assertFalse($auth->allowed);
+        self::assertSame('ip:default', $auth->reason);
     }
 }

@@ -64,4 +64,41 @@ final class FilterPriorityCompilerPassTest extends TestCase
         self::assertCount(1, $tags);
         self::assertSame(250, $tags[0]['priority']);
     }
+
+    public function testNonExistentFilterIsFalse(): void
+    {
+        $cb = new ContainerBuilder();
+        $cb->setParameter('geolocator.filters_priority', ['non_existent' => 100]);
+
+        $this->runPass($cb);
+
+        self::assertFalse($cb->hasDefinition('geolocator.non_existent_filter'));
+    }
+
+    public function testFilterPrioritiesAreRespected(): void
+    {
+        $cb = new ContainerBuilder();
+        $cb->setParameter('geolocator.filters_priority', ['vpn' => 300,
+            'navigator'                                         => 200,
+        ]);
+
+        $vpnDef = new Definition('Xorgxx\\GeolocatorBundle\\Service\\Filter\\Core\\VpnFilter');
+        $vpnDef->addTag('xorgxx.geolocator.filter', ['priority' => 5]);
+        $cb->setDefinition('geolocator.vpn_filter', $vpnDef);
+
+        $navDef = new Definition('Xorgxx\\GeolocatorBundle\\Service\\Filter\\Core\\NavigatorFilter');
+        $navDef->addTag('xorgxx.geolocator.filter', ['priority' => 10]);
+        $cb->setDefinition('geolocator.navigator_filter', $navDef);
+
+        $this->runPass($cb);
+
+        $vpnTags = $cb->getDefinition('geolocator.vpn_filter')
+                      ->getTag('xorgxx.geolocator.filter');
+        $navTags = $cb->getDefinition('geolocator.navigator_filter')
+                      ->getTag('xorgxx.geolocator.filter');
+
+        self::assertSame(300, $vpnTags[0]['priority']);
+        self::assertSame(200, $navTags[0]['priority']);
+        self::assertTrue($vpnTags[0]['priority'] > $navTags[0]['priority']);
+    }
 }
